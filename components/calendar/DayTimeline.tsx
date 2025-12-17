@@ -131,45 +131,47 @@ export function DayTimeline({ onEventClick, onTimeSlotClick, onTodoClick, onAuto
   return (
     <DndContext sensors={sensors} onDragEnd={handleDragEnd} onDragStart={(e) => setDraggedEvent(e.active.id as string)}>
       <div className="flex flex-col h-full bg-white dark:bg-slate-950">
-        <div className="flex items-center justify-between p-4 border-b border-slate-200 dark:border-slate-800">
-          <div className="flex items-center gap-2">
-            <Button variant="ghost" size="icon" onClick={handlePrevDay} className="h-8 w-8">
+        <div className="border-b border-slate-200 dark:border-slate-800 p-3">
+          <div className="flex items-center justify-between gap-2">
+            <Button variant="outline" size="sm" onClick={handlePrevDay} className="shrink-0">
               <ChevronLeft className="h-4 w-4" />
             </Button>
-            <Button variant="ghost" size="icon" onClick={handleNextDay} className="h-8 w-8">
+
+            <div className="flex items-center gap-2 min-w-0 flex-1">
+              <h2 className="text-base md:text-lg font-bold text-slate-900 dark:text-white whitespace-nowrap">
+                {format(displayDate, 'yyyy年M月d日(E)', { locale: ja })}
+              </h2>
+            </div>
+
+            <div className="flex gap-1 shrink-0">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleToday}
+                className="hidden md:flex"
+              >
+                今日
+              </Button>
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={onTodoClick}
+                className="h-8 w-8"
+              >
+                <List className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={handleAutoGenerate}
+                className="h-8 w-8"
+              >
+                <Sparkles className="h-4 w-4" />
+              </Button>
+            </div>
+
+            <Button variant="outline" size="sm" onClick={handleNextDay} className="shrink-0">
               <ChevronRight className="h-4 w-4" />
-            </Button>
-          </div>
-
-          <h2 className="text-lg font-semibold text-slate-900 dark:text-white">
-            {format(displayDate, 'yyyy年M月d日(E)', { locale: ja })}
-          </h2>
-
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleToday}
-            >
-              今日
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={onTodoClick}
-              className="gap-2"
-            >
-              <List className="h-4 w-4" />
-              TODOリスト
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleAutoGenerate}
-              className="gap-2"
-            >
-              <Sparkles className="h-4 w-4" />
-              自動生成
             </Button>
           </div>
         </div>
