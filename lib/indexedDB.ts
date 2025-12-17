@@ -6,6 +6,9 @@
 import { CalendarEvent, Todo, Template, CategoryItem, UserSettings, Goal } from './types';
 import { TaskHistory } from './learningEngine';
 
+// サーバーサイドレンダリング対応
+const isBrowser = typeof window !== 'undefined';
+
 const DB_NAME = 'GoogleCalendarClone';
 const DB_VERSION = 1;
 
@@ -24,6 +27,10 @@ const STORES = {
  * データベースを開く
  */
 function openDB(): Promise<IDBDatabase> {
+  if (!isBrowser) {
+    return Promise.reject(new Error('IndexedDB is only available in browser'));
+  }
+
   return new Promise((resolve, reject) => {
     const request = indexedDB.open(DB_NAME, DB_VERSION);
 
@@ -238,6 +245,11 @@ export const taskHistoryDB = {
 // ============================================================
 
 export async function initializeDatabase(): Promise<void> {
+  if (!isBrowser) {
+    console.log('⚠️ Skipping IndexedDB initialization on server');
+    return;
+  }
+
   console.log('📦 Initializing IndexedDB...');
 
   // デフォルトカテゴリ

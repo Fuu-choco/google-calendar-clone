@@ -1,9 +1,8 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // AI機能を使用するため、静的エクスポートモードを無効化
-  // 静的エクスポートが必要な場合は、output: 'export' を有効にしてください
-  // （ただし、その場合はAI機能は使用できません）
-  // output: 'export',
+  // OpenAI APIキーがないため、完全静的エクスポートモードを有効化
+  // これにより完全オフライン対応のPWAとして動作します
+  output: 'export',
   eslint: {
     ignoreDuringBuilds: true,
   },

@@ -196,6 +196,9 @@ const defaultCategories: CategoryItem[] = [
   { id: '3', name: 'その他', color: '#6B7280', isDefault: true },
 ];
 
+// Browser check for SSR safety
+const isBrowser = typeof window !== 'undefined';
+
 export const useAppStore = create<AppState>()(
   persist(
     (set, get) => ({

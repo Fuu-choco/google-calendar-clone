@@ -5,10 +5,11 @@ import { useAppStore } from '@/lib/store';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { GoalProgress } from './GoalProgress';
 import { AchievementChart } from './AchievementChart';
-import { ScheduleOptimizer } from '@/components/ai/ScheduleOptimizer';
-import { AIAssistant } from '@/components/ai/AIAssistant';
+// AI機能は静的エクスポートモードでは無効
+// import { ScheduleOptimizer } from '@/components/ai/ScheduleOptimizer';
+// import { AIAssistant } from '@/components/ai/AIAssistant';
 import { InsightsView } from './InsightsView';
-import { LearningInsightsView } from './LearningInsightsView';
+// import { LearningInsightsView } from './LearningInsightsView';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
@@ -263,14 +264,31 @@ export function DashboardView() {
             </TabsContent>
 
             <TabsContent value="learning" className="mt-6">
-              <LearningInsightsView />
+              <Card>
+                <CardHeader>
+                  <CardTitle>学習インサイト</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-muted-foreground">
+                    学習インサイト機能は今後のアップデートで追加予定です。
+                  </p>
+                </CardContent>
+              </Card>
             </TabsContent>
 
             <TabsContent value="ai" className="space-y-6 mt-6">
-              <div className="grid gap-6 md:grid-cols-2">
-                <ScheduleOptimizer targetDate={new Date()} />
-                <AIAssistant />
-              </div>
+              <Card>
+                <CardHeader>
+                  <CardTitle>AI機能</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-muted-foreground">
+                    AI機能を使用するには、OpenAI APIキーが必要です。
+                    <br />
+                    .env.local ファイルに OPENAI_API_KEY を設定してください。
+                  </p>
+                </CardContent>
+              </Card>
             </TabsContent>
           </Tabs>
         </div>
