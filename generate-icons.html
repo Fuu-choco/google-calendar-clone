@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PWA Icon Generator</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      max-width: 800px;
+      margin: 50px auto;
+      padding: 20px;
+      background: #f5f5f5;
+    }
+    .container {
+      background: white;
+      padding: 30px;
+      border-radius: 10px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+    h1 {
+      color: #2563eb;
+      margin-bottom: 10px;
+    }
+    .subtitle {
+      color: #666;
+      margin-bottom: 30px;
+    }
+    .preview {
+      display: flex;
+      gap: 20px;
+      margin: 30px 0;
+      flex-wrap: wrap;
+    }
+    .preview-item {
+      text-align: center;
+    }
+    .preview-item canvas {
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      display: block;
+      margin-bottom: 10px;
+    }
+    button {
+      background: #2563eb;
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 16px;
+      margin-right: 10px;
+      margin-bottom: 10px;
+    }
+    button:hover {
+      background: #1d4ed8;
+    }
+    .instructions {
+      background: #f0f9ff;
+      border-left: 4px solid #2563eb;
+      padding: 15px;
+      margin-top: 20px;
+      border-radius: 4px;
+    }
+    .instructions h3 {
+      margin-top: 0;
+      color: #2563eb;
+    }
+    .instructions ol {
+      margin: 10px 0;
+      padding-left: 20px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>📱 PWA Icon Generator</h1>
+    <p class="subtitle">Google Calendar Clone用のアイコンを生成します</p>
+
+    <div class="preview">
+      <div class="preview-item">
+        <canvas id="icon192" width="192" height="192"></canvas>
+        <button onclick="downloadIcon('icon192', 'icon-192x192.png')">192x192をダウンロード</button>
+      </div>
+      <div class="preview-item">
+        <canvas id="icon512" width="512" height="512"></canvas>
+        <button onclick="downloadIcon('icon512', 'icon-512x512.png')">512x512をダウンロード</button>
+      </div>
+    </div>
+
+    <div class="instructions">
+      <h3>📝 使い方</h3>
+      <ol>
+        <li>上のボタンをクリックして、各サイズのアイコンをダウンロード</li>
+        <li>ダウンロードしたファイルを <code>public/</code> フォルダに配置</li>
+        <li>ブラウザをリロードしてPWAをテスト</li>
+      </ol>
+    </div>
+  </div>
+
+  <script>
+    // アイコンを描画する関数
+    function drawIcon(canvasId, size) {
+      const canvas = document.getElementById(canvasId);
+      const ctx = canvas.getContext('2d');
+
+      // 背景グラデーション
+      const gradient = ctx.createLinearGradient(0, 0, size, size);
+      gradient.addColorStop(0, '#2563eb');
+      gradient.addColorStop(1, '#1d4ed8');
+      ctx.fillStyle = gradient;
+      ctx.fillRect(0, 0, size, size);
+
+      // カレンダーアイコンを描画
+      const iconSize = size * 0.6;
+      const x = (size - iconSize) / 2;
+      const y = (size - iconSize) / 2;
+
+      // カレンダーの本体（白い四角）
+      ctx.fillStyle = 'white';
+      ctx.roundRect(x, y + iconSize * 0.15, iconSize, iconSize * 0.85, iconSize * 0.1);
+      ctx.fill();
+
+      // カレンダーのヘッダー（濃い青）
+      ctx.fillStyle = '#1e40af';
+      ctx.roundRect(x, y + iconSize * 0.15, iconSize, iconSize * 0.25, [iconSize * 0.1, iconSize * 0.1, 0, 0]);
+      ctx.fill();
+
+      // リング（上部の2つの円）
+      ctx.fillStyle = '#1e40af';
+      const ringY = y + iconSize * 0.05;
+      const ringRadius = iconSize * 0.08;
+      ctx.beginPath();
+      ctx.arc(x + iconSize * 0.3, ringY, ringRadius, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(x + iconSize * 0.7, ringY, ringRadius, 0, Math.PI * 2);
+      ctx.fill();
+
+      // カレンダーのグリッド（簡略化）
+      ctx.fillStyle = '#2563eb';
+      const dotSize = iconSize * 0.06;
+      const startX = x + iconSize * 0.15;
+      const startY = y + iconSize * 0.5;
+      const spacing = iconSize * 0.15;
+
+      for (let row = 0; row < 3; row++) {
+        for (let col = 0; col < 4; col++) {
+          ctx.beginPath();
+          ctx.arc(
+            startX + col * spacing,
+            startY + row * spacing,
+            dotSize,
+            0,
+            Math.PI * 2
+          );
+          ctx.fill();
+        }
+      }
+
+      // 日付の数字（中央に大きく "15"）
+      ctx.fillStyle = '#ef4444';
+      ctx.font = `bold ${iconSize * 0.35}px Arial`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('15', size / 2, y + iconSize * 0.65);
+    }
+
+    // Canvas 2D ContextのroundRect対応（古いブラウザ用のポリフィル）
+    if (!CanvasRenderingContext2D.prototype.roundRect) {
+      CanvasRenderingContext2D.prototype.roundRect = function(x, y, width, height, radius) {
+        if (typeof radius === 'number') {
+          radius = [radius, radius, radius, radius];
+        }
+        this.beginPath();
+        this.moveTo(x + radius[0], y);
+        this.lineTo(x + width - radius[1], y);
+        this.arcTo(x + width, y, x + width, y + radius[1], radius[1]);
+        this.lineTo(x + width, y + height - radius[2]);
+        this.arcTo(x + width, y + height, x + width - radius[2], y + height, radius[2]);
+        this.lineTo(x + radius[3], y + height);
+        this.arcTo(x, y + height, x, y + height - radius[3], radius[3]);
+        this.lineTo(x, y + radius[0]);
+        this.arcTo(x, y, x + radius[0], y, radius[0]);
+        this.closePath();
+      };
+    }
+
+    // アイコンをダウンロードする関数
+    function downloadIcon(canvasId, filename) {
+      const canvas = document.getElementById(canvasId);
+      const url = canvas.toDataURL('image/png');
+      const link = document.createElement('a');
+      link.download = filename;
+      link.href = url;
+      link.click();
+    }
+
+    // ページ読み込み時にアイコンを描画
+    window.addEventListener('load', () => {
+      drawIcon('icon192', 192);
+      drawIcon('icon512', 512);
+    });
+  </script>
+</body>
+</html>
