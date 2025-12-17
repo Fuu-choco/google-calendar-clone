@@ -5,31 +5,35 @@ import { useAppStore } from '@/lib/store';
 import { TodoItem } from './TodoItem';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Plus } from 'lucide-react';
-import { format, isToday, isTomorrow, parseISO, startOfDay, isBefore } from 'date-fns';
+import { Plus, Calendar } from 'lucide-react';
+import { format, isToday, isTomorrow, parseISO, startOfDay, isBefore, isAfter, addDays } from 'date-fns';
+import { ja } from 'date-fns/locale';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 
 export function TodoList() {
-  const { todos, addTodo, toggleTodo, deleteTodo } = useAppStore();
+  const { todos, addTodo, toggleTodo, deleteTodo, setCurrentTab, setViewMode, selectedDate, setSelectedDate } = useAppStore();
   const [newTodoText, setNewTodoText] = useState('');
 
   const today = startOfDay(new Date());
 
-  const todayTodos = todos.filter((todo) => {
-    const dueDate = parseISO(todo.dueDate);
-    return isToday(dueDate);
-  });
+  // storeのselectedDateを文字列形式で取得（ない場合は今日）
+  const displayDate = selectedDate || new Date();
+  const selectedDateStr = format(displayDate, 'yyyy-MM-dd');
 
-  const tomorrowTodos = todos.filter((todo) => {
-    const dueDate = parseISO(todo.dueDate);
-    return isTomorrow(dueDate);
-  });
+  // Todoを日付ごとにグループ化
+  const todosByDate = todos.reduce((acc, todo) => {
+    const dateKey = todo.dueDate;
+    if (!acc[dateKey]) {
+      acc[dateKey] = [];
+    }
+    acc[dateKey].push(todo);
+    return acc;
+  }, {} as Record<string, typeof todos>);
 
-  const carriedOverTodos = todos.filter((todo) => {
-    const dueDate = parseISO(todo.dueDate);
-    const createdDate = parseISO(todo.createdDate);
-    return !todo.completed && isBefore(createdDate, today) && !isToday(createdDate);
+  // 日付をソート（過去→未来）
+  const sortedDates = Object.keys(todosByDate).sort((a, b) => {
+    return parseISO(a).getTime() - parseISO(b).getTime();
   });
 
   const handleAddTodo = async () => {
@@ -40,7 +44,7 @@ export function TodoList() {
           id: Math.random().toString(),
           content: newTodoText,
           completed: false,
-          dueDate: todayStr,
+          dueDate: selectedDateStr,
           createdDate: todayStr,
         });
         setNewTodoText('');
@@ -57,135 +61,130 @@ export function TodoList() {
     }
   };
 
+  const handleGoToCalendar = () => {
+    setViewMode('day');
+    setCurrentTab('calendar');
+  };
+
   return (
     <div className="flex flex-col h-full bg-white dark:bg-slate-950">
       <div className="border-b border-slate-200 dark:border-slate-800 p-4">
-        <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-4">
-          Todo リスト
-        </h2>
-
-        <div className="flex gap-2">
-          <Input
-            placeholder="新しいTodoを追加..."
-            value={newTodoText}
-            onChange={(e) => setNewTodoText(e.target.value)}
-            onKeyPress={handleKeyPress}
-            className="flex-1"
-          />
-          <Button onClick={handleAddTodo} size="icon">
-            <Plus className="h-4 w-4" />
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-2xl font-bold text-slate-900 dark:text-white">
+            Todo リスト
+          </h2>
+          <Button
+            onClick={handleGoToCalendar}
+            variant="outline"
+            size="sm"
+            className="gap-2"
+          >
+            <Calendar className="h-4 w-4" />
+            カレンダー
           </Button>
+        </div>
+
+        <div className="space-y-2">
+          <div className="flex gap-2">
+            <Input
+              type="date"
+              value={selectedDateStr}
+              onChange={(e) => {
+                const newDate = parseISO(e.target.value);
+                setSelectedDate(newDate);
+              }}
+              className="w-40"
+            />
+            <Input
+              placeholder="新しいTodoを追加..."
+              value={newTodoText}
+              onChange={(e) => setNewTodoText(e.target.value)}
+              onKeyPress={handleKeyPress}
+              className="flex-1"
+            />
+            <Button onClick={handleAddTodo} size="icon">
+              <Plus className="h-4 w-4" />
+            </Button>
+          </div>
         </div>
       </div>
 
       <ScrollArea className="flex-1 p-4">
         <div className="space-y-6">
-          {carriedOverTodos.length > 0 && (
-            <div>
-              <h3 className="text-sm font-semibold text-red-600 dark:text-red-400 mb-3 flex items-center gap-2">
-                明日に繰り越されたTodo
-                <span className="text-xs bg-red-100 dark:bg-red-950 px-2 py-0.5 rounded-full">
-                  {carriedOverTodos.length}
-                </span>
-              </h3>
-              <div className="space-y-2">
-                {carriedOverTodos.map((todo) => (
-                  <TodoItem
-                    key={todo.id}
-                    todo={todo}
-                    onToggle={async () => {
-                      try {
-                        await toggleTodo(todo.id);
-                      } catch (error) {
-                        console.error('Todoの更新に失敗しました:', error);
-                      }
-                    }}
-                    onDelete={async () => {
-                      try {
-                        await deleteTodo(todo.id);
-                      } catch (error) {
-                        console.error('Todoの削除に失敗しました:', error);
-                      }
-                    }}
-                  />
-                ))}
-              </div>
-            </div>
-          )}
+          {sortedDates.length === 0 ? (
+            <p className="text-sm text-slate-500 dark:text-slate-400 text-center py-8">
+              Todoはありません
+            </p>
+          ) : (
+            sortedDates.map((dateKey, index) => {
+              const dateTodos = todosByDate[dateKey];
+              const date = parseISO(dateKey);
+              const isPast = isBefore(date, today);
+              const isTodayDate = isToday(date);
+              const isTomorrowDate = isTomorrow(date);
 
-          {carriedOverTodos.length > 0 && <Separator />}
+              // 日付ラベルを決定
+              let dateLabel = format(date, 'M月d日(E)', { locale: ja });
+              if (isTodayDate) {
+                dateLabel = '今日のTodo';
+              } else if (isTomorrowDate) {
+                dateLabel = '明日のTodo';
+              } else if (isPast) {
+                dateLabel = `${format(date, 'M月d日(E)', { locale: ja })} (過去)`;
+              }
 
-          <div>
-            <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-3 flex items-center gap-2">
-              今日のTodo
-              <span className="text-xs bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-400 px-2 py-0.5 rounded-full">
-                {todayTodos.filter(t => !t.completed).length} / {todayTodos.length}
-              </span>
-            </h3>
-            <div className="space-y-2">
-              {todayTodos.length === 0 ? (
-                <p className="text-sm text-slate-500 dark:text-slate-400 text-center py-8">
-                  今日のTodoはありません
-                </p>
-              ) : (
-                todayTodos.map((todo) => (
-                  <TodoItem
-                    key={todo.id}
-                    todo={todo}
-                    onToggle={async () => {
-                      try {
-                        await toggleTodo(todo.id);
-                      } catch (error) {
-                        console.error('Todoの更新に失敗しました:', error);
-                      }
-                    }}
-                    onDelete={async () => {
-                      try {
-                        await deleteTodo(todo.id);
-                      } catch (error) {
-                        console.error('Todoの削除に失敗しました:', error);
-                      }
-                    }}
-                  />
-                ))
-              )}
-            </div>
-          </div>
+              // スタイルを決定
+              const headerColor = isPast
+                ? 'text-red-600 dark:text-red-400'
+                : isTodayDate
+                ? 'text-blue-600 dark:text-blue-400'
+                : 'text-slate-700 dark:text-slate-300';
 
-          {tomorrowTodos.length > 0 && (
-            <>
-              <Separator />
-              <div>
-                <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-3 flex items-center gap-2">
-                  明日のTodo
-                  <span className="text-xs bg-slate-100 dark:bg-slate-900 text-slate-700 dark:text-slate-400 px-2 py-0.5 rounded-full">
-                    {tomorrowTodos.length}
-                  </span>
-                </h3>
-                <div className="space-y-2">
-                  {tomorrowTodos.map((todo) => (
-                    <TodoItem
-                      key={todo.id}
-                      todo={todo}
-                      onToggle={async () => {
-                        try {
-                          await toggleTodo(todo.id);
-                        } catch (error) {
-                          console.error('Todoの更新に失敗しました:', error);
-                        }
-                      }}
-                      onDelete={async () => {
-                        try {
-                          await deleteTodo(todo.id);
-                        } catch (error) {
-                          console.error('Todoの削除に失敗しました:', error);
-                        }
-                      }}
-                    />
-                  ))}
+              const badgeColor = isPast
+                ? 'bg-red-100 dark:bg-red-950 text-red-700 dark:text-red-400'
+                : isTodayDate
+                ? 'bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-400'
+                : 'bg-slate-100 dark:bg-slate-900 text-slate-700 dark:text-slate-400';
+
+              const completedCount = dateTodos.filter(t => t.completed).length;
+              const totalCount = dateTodos.length;
+
+              return (
+                <div key={dateKey}>
+                  {index > 0 && <Separator />}
+                  <div>
+                    <h3 className={`text-sm font-semibold mb-3 flex items-center gap-2 ${headerColor}`}>
+                      {dateLabel}
+                      <span className={`text-xs px-2 py-0.5 rounded-full ${badgeColor}`}>
+                        {completedCount} / {totalCount}
+                      </span>
+                    </h3>
+                    <div className="space-y-2">
+                      {dateTodos.map((todo) => (
+                        <TodoItem
+                          key={todo.id}
+                          todo={todo}
+                          onToggle={async () => {
+                            try {
+                              await toggleTodo(todo.id);
+                            } catch (error) {
+                              console.error('Todoの更新に失敗しました:', error);
+                            }
+                          }}
+                          onDelete={async () => {
+                            try {
+                              await deleteTodo(todo.id);
+                            } catch (error) {
+                              console.error('Todoの削除に失敗しました:', error);
+                            }
+                          }}
+                        />
+                      ))}
+                    </div>
+                  </div>
                 </div>
-              </div>
-            </>
+              );
+            })
           )}
         </div>
       </ScrollArea>

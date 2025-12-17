@@ -6,8 +6,8 @@ import { MonthCalendar } from './MonthCalendar';
 import { DayTimeline } from './DayTimeline';
 import { TaskEditModal } from './TaskEditModal';
 import { Button } from '@/components/ui/button';
-import { Calendar, List, Sparkles } from 'lucide-react';
-import { format } from 'date-fns';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { format, addMonths, subMonths } from 'date-fns';
 import { ja } from 'date-fns/locale';
 import { generateDaySchedule } from '@/lib/scheduleGenerator';
 import { useToast } from '@/hooks/use-toast';
@@ -17,9 +17,11 @@ export function CalendarView() {
     viewMode,
     setViewMode,
     currentDate,
+    setCurrentDate,
     selectedDate,
     selectedEvent,
     setSelectedEvent,
+    setCurrentTab,
     events,
     templates,
     userSettings,
@@ -64,6 +66,18 @@ export function CalendarView() {
     }
   };
 
+  const handlePrevMonth = () => {
+    setCurrentDate(subMonths(currentDate, 1));
+  };
+
+  const handleNextMonth = () => {
+    setCurrentDate(addMonths(currentDate, 1));
+  };
+
+  const handleToday = () => {
+    setCurrentDate(new Date());
+  };
+
   const handleAutoGenerate = async () => {
     try {
       // 自動生成を実行
@@ -104,19 +118,42 @@ export function CalendarView() {
 
   return (
     <div className="flex flex-col h-full">
-      {/* 自動生成ボタン（日表示のみ） */}
-      {viewMode === 'day' && (
-        <div className="flex justify-end p-4 pb-2">
+      {/* 月表示ヘッダー（月表示のみ） */}
+      {viewMode === 'month' && (
+        <div className="flex items-center justify-between p-4 border-b">
+          <div className="flex items-center gap-2">
+            <Button
+              onClick={handlePrevMonth}
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8"
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            <Button
+              onClick={handleNextMonth}
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8"
+            >
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
+
+          <h2 className="text-lg font-semibold">
+            {format(currentDate, 'yyyy年 M月', { locale: ja })}
+          </h2>
+
           <Button
-            onClick={handleAutoGenerate}
+            onClick={handleToday}
             variant="outline"
-            className="gap-2"
+            size="sm"
           >
-            <Sparkles className="w-4 h-4" />
-            スケジュール自動生成
+            今日
           </Button>
         </div>
       )}
+
 
       <div className="flex-1 overflow-hidden">
         {viewMode === 'month' ? (
@@ -128,6 +165,8 @@ export function CalendarView() {
           <DayTimeline
             onEventClick={handleEventClick}
             onTimeSlotClick={handleTimeSlotClick}
+            onTodoClick={() => setCurrentTab('todo')}
+            onAutoGenerate={handleAutoGenerate}
           />
         )}
       </div>

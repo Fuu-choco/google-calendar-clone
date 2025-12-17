@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useAppStore } from '@/lib/store';
 import { format, parseISO, isSameDay, addDays, subDays, addMinutes } from 'date-fns';
 import { ja } from 'date-fns/locale';
-import { ChevronLeft, ChevronRight, Sparkles } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Sparkles, List } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { TaskCard } from './TaskCard';
@@ -15,9 +15,11 @@ import { DndContext, DragEndEvent, PointerSensor, useSensor, useSensors, useDrag
 interface DayTimelineProps {
   onEventClick?: (event: any) => void;
   onTimeSlotClick?: (start: Date, end: Date) => void;
+  onTodoClick?: () => void;
+  onAutoGenerate?: () => void;
 }
 
-export function DayTimeline({ onEventClick, onTimeSlotClick }: DayTimelineProps) {
+export function DayTimeline({ onEventClick, onTimeSlotClick, onTodoClick, onAutoGenerate }: DayTimelineProps) {
   const {
     selectedDate,
     currentDate,
@@ -57,7 +59,11 @@ export function DayTimeline({ onEventClick, onTimeSlotClick }: DayTimelineProps)
   };
 
   const handleAutoGenerate = () => {
-    toast.info('AI自動生成機能は準備中です');
+    if (onAutoGenerate) {
+      onAutoGenerate();
+    } else {
+      toast.info('AI自動生成機能は準備中です');
+    }
   };
 
   const handleDragEnd = (event: DragEndEvent) => {
@@ -125,43 +131,45 @@ export function DayTimeline({ onEventClick, onTimeSlotClick }: DayTimelineProps)
   return (
     <DndContext sensors={sensors} onDragEnd={handleDragEnd} onDragStart={(e) => setDraggedEvent(e.active.id as string)}>
       <div className="flex flex-col h-full bg-white dark:bg-slate-950">
-        <div className="border-b border-slate-200 dark:border-slate-800 p-3">
-          <div className="flex items-center justify-between gap-2">
-            <Button variant="outline" size="sm" onClick={handlePrevDay} className="shrink-0">
+        <div className="flex items-center justify-between p-4 border-b border-slate-200 dark:border-slate-800">
+          <div className="flex items-center gap-2">
+            <Button variant="ghost" size="icon" onClick={handlePrevDay} className="h-8 w-8">
               <ChevronLeft className="h-4 w-4" />
             </Button>
-
-            <div className="flex items-center gap-2 min-w-0 flex-1">
-              <h2 className="text-base md:text-lg font-bold text-slate-900 dark:text-white whitespace-nowrap">
-                {format(displayDate, 'yyyy年M月d日(E)', { locale: ja })}
-              </h2>
-              <span className="text-xs text-slate-500 dark:text-slate-400 whitespace-nowrap hidden sm:inline">
-                {dayEvents.length}件
-              </span>
-            </div>
-
-            <div className="flex gap-1 shrink-0">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleToday}
-                className="hidden md:flex"
-              >
-                今日
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleAutoGenerate}
-                className="bg-gradient-to-r from-blue-600 to-purple-600 text-white border-0 hover:from-blue-700 hover:to-purple-700 text-xs md:text-sm px-2 md:px-3"
-              >
-                <Sparkles className="h-3 w-3 md:h-4 md:w-4 md:mr-1" />
-                <span className="hidden md:inline">自動生成</span>
-              </Button>
-            </div>
-
-            <Button variant="outline" size="sm" onClick={handleNextDay} className="shrink-0">
+            <Button variant="ghost" size="icon" onClick={handleNextDay} className="h-8 w-8">
               <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
+
+          <h2 className="text-lg font-semibold text-slate-900 dark:text-white">
+            {format(displayDate, 'yyyy年M月d日(E)', { locale: ja })}
+          </h2>
+
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleToday}
+            >
+              今日
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onTodoClick}
+              className="gap-2"
+            >
+              <List className="h-4 w-4" />
+              TODOリスト
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleAutoGenerate}
+              className="gap-2"
+            >
+              <Sparkles className="h-4 w-4" />
+              自動生成
             </Button>
           </div>
         </div>
