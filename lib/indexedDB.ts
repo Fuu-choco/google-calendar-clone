@@ -87,63 +87,103 @@ function openDB(): Promise<IDBDatabase> {
  * 汎用的なCRUD操作
  */
 async function getAll<T>(storeName: string): Promise<T[]> {
-  const db = await openDB();
-  return new Promise((resolve, reject) => {
-    const transaction = db.transaction(storeName, 'readonly');
-    const store = transaction.objectStore(storeName);
-    const request = store.getAll();
+  try {
+    const db = await openDB();
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction(storeName, 'readonly');
+      const store = transaction.objectStore(storeName);
+      const request = store.getAll();
 
-    request.onsuccess = () => resolve(request.result);
-    request.onerror = () => reject(request.error);
-  });
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => {
+        console.error(`❌ Error getting all from ${storeName}:`, request.error);
+        reject(request.error);
+      };
+    });
+  } catch (error) {
+    console.error(`❌ Failed to open database for ${storeName}:`, error);
+    throw new Error(`Database operation failed: ${error}`);
+  }
 }
 
 async function getById<T>(storeName: string, id: string): Promise<T | undefined> {
-  const db = await openDB();
-  return new Promise((resolve, reject) => {
-    const transaction = db.transaction(storeName, 'readonly');
-    const store = transaction.objectStore(storeName);
-    const request = store.get(id);
+  try {
+    const db = await openDB();
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction(storeName, 'readonly');
+      const store = transaction.objectStore(storeName);
+      const request = store.get(id);
 
-    request.onsuccess = () => resolve(request.result);
-    request.onerror = () => reject(request.error);
-  });
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => {
+        console.error(`❌ Error getting ${id} from ${storeName}:`, request.error);
+        reject(request.error);
+      };
+    });
+  } catch (error) {
+    console.error(`❌ Failed to open database for getById in ${storeName}:`, error);
+    throw new Error(`Database operation failed: ${error}`);
+  }
 }
 
 async function add<T>(storeName: string, data: T): Promise<T> {
-  const db = await openDB();
-  return new Promise((resolve, reject) => {
-    const transaction = db.transaction(storeName, 'readwrite');
-    const store = transaction.objectStore(storeName);
-    const request = store.add(data);
+  try {
+    const db = await openDB();
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction(storeName, 'readwrite');
+      const store = transaction.objectStore(storeName);
+      const request = store.add(data);
 
-    request.onsuccess = () => resolve(data);
-    request.onerror = () => reject(request.error);
-  });
+      request.onsuccess = () => resolve(data);
+      request.onerror = () => {
+        console.error(`❌ Error adding to ${storeName}:`, request.error);
+        reject(request.error);
+      };
+    });
+  } catch (error) {
+    console.error(`❌ Failed to open database for add in ${storeName}:`, error);
+    throw new Error(`Database operation failed: ${error}`);
+  }
 }
 
 async function update<T>(storeName: string, data: T): Promise<T> {
-  const db = await openDB();
-  return new Promise((resolve, reject) => {
-    const transaction = db.transaction(storeName, 'readwrite');
-    const store = transaction.objectStore(storeName);
-    const request = store.put(data);
+  try {
+    const db = await openDB();
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction(storeName, 'readwrite');
+      const store = transaction.objectStore(storeName);
+      const request = store.put(data);
 
-    request.onsuccess = () => resolve(data);
-    request.onerror = () => reject(request.error);
-  });
+      request.onsuccess = () => resolve(data);
+      request.onerror = () => {
+        console.error(`❌ Error updating in ${storeName}:`, request.error);
+        reject(request.error);
+      };
+    });
+  } catch (error) {
+    console.error(`❌ Failed to open database for update in ${storeName}:`, error);
+    throw new Error(`Database operation failed: ${error}`);
+  }
 }
 
 async function remove(storeName: string, id: string): Promise<void> {
-  const db = await openDB();
-  return new Promise((resolve, reject) => {
-    const transaction = db.transaction(storeName, 'readwrite');
-    const store = transaction.objectStore(storeName);
-    const request = store.delete(id);
+  try {
+    const db = await openDB();
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction(storeName, 'readwrite');
+      const store = transaction.objectStore(storeName);
+      const request = store.delete(id);
 
-    request.onsuccess = () => resolve();
-    request.onerror = () => reject(request.error);
-  });
+      request.onsuccess = () => resolve();
+      request.onerror = () => {
+        console.error(`❌ Error removing ${id} from ${storeName}:`, request.error);
+        reject(request.error);
+      };
+    });
+  } catch (error) {
+    console.error(`❌ Failed to open database for remove in ${storeName}:`, error);
+    throw new Error(`Database operation failed: ${error}`);
+  }
 }
 
 // ============================================================

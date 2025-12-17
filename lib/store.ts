@@ -416,7 +416,7 @@ export const useAppStore = create<AppState>()(
       addCategory: async (category) => {
         try {
           const newCategory: CategoryItem = {
-            id: Math.random().toString(),
+            id: crypto.randomUUID(),
             ...category,
           };
           await categoriesDB.add(newCategory);
@@ -501,7 +501,7 @@ export const useAppStore = create<AppState>()(
       addNotification: (notification) => {
         const newNotification: AppNotification = {
           ...notification,
-          id: `notif-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+          id: crypto.randomUUID(),
           timestamp: new Date().toISOString(),
           read: false,
         };

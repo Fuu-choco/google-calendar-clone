@@ -41,7 +41,7 @@ export function TodoList() {
       try {
         const todayStr = format(new Date(), 'yyyy-MM-dd');
         await addTodo({
-          id: Math.random().toString(),
+          id: crypto.randomUUID(),
           content: newTodoText,
           completed: false,
           dueDate: selectedDateStr,

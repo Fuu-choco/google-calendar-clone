@@ -23,10 +23,11 @@ export default function Home() {
   const [showMobileSidebar, setShowMobileSidebar] = useState(false);
   const scheduledNotifications = useRef<Map<string, number[]>>(new Map());
 
-  // Supabaseからデータを取得
+  // IndexedDBからデータを取得（初回マウント時のみ）
   useEffect(() => {
     fetchData();
-  }, [fetchData]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // 通知権限をリクエスト（初回のみ）
   useEffect(() => {
