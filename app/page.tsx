@@ -18,7 +18,7 @@ import {
 import { registerServiceWorker } from '@/lib/registerServiceWorker';
 
 export default function Home() {
-  const { currentTab, fetchData, isLoading, events, addNotification } = useAppStore();
+  const { currentTab, fetchData, isLoading, events, addNotification, currentDate } = useAppStore();
   const [showAddEvent, setShowAddEvent] = useState(false);
   const [showMobileSidebar, setShowMobileSidebar] = useState(false);
   const scheduledNotifications = useRef<Map<string, number[]>>(new Map());
@@ -98,6 +98,7 @@ export default function Home() {
       <TaskEditModal
         open={showAddEvent}
         onOpenChange={setShowAddEvent}
+        defaultDate={currentDate}
       />
     </div>
   );
