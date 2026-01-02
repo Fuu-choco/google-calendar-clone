@@ -22,14 +22,13 @@ import { TemplateEditModal } from './TemplateEditModal';
 import { Template } from '@/lib/types';
 
 export function SettingsView() {
-  const { userSettings, updateSettings, goals, updateGoals, templates, deleteTemplate, addTemplate, updateTemplate, categories } =
+  const { userSettings, updateSettings, goals, updateGoals, templates, deleteTemplate, addTemplate, updateTemplate, categories, events } =
     useAppStore();
 
   const [localSettings, setLocalSettings] = useState(userSettings);
   const [localGoals, setLocalGoals] = useState(goals);
   const [localCategories, setLocalCategories] = useState(categories);
   const [hasChanges, setHasChanges] = useState(false);
-  const [refreshKey, setRefreshKey] = useState(0);
   const [isTemplateModalOpen, setIsTemplateModalOpen] = useState(false);
   const [editingTemplate, setEditingTemplate] = useState<Template | undefined>(undefined);
 
@@ -49,6 +48,23 @@ export function SettingsView() {
     setHasChanges(true);
   };
 
+  const handleNumberInput = (key: string, valueStr: string, min: number = 0, max: number = 9999) => {
+    if (valueStr === '') {
+      handleGoalChange(key, min);
+      return;
+    }
+    const value = parseInt(valueStr);
+    if (isNaN(value)) return;
+    const clampedValue = Math.max(min, Math.min(max, value));
+    handleGoalChange(key, clampedValue);
+  };
+
+  const checkCategoryUsage = (categoryName: string) => {
+    const usedInEvents = events.filter(e => e.category === categoryName).length;
+    const usedInTemplates = templates.filter(t => t.category === categoryName).length;
+    return { usedInEvents, usedInTemplates, total: usedInEvents + usedInTemplates };
+  };
+
   const handleSave = async () => {
     try {
       await updateSettings(localSettings);
@@ -66,7 +82,6 @@ export function SettingsView() {
       }
 
       setHasChanges(false);
-      setRefreshKey((prev) => prev + 1);
       toast.success('すべての設定を保存しました');
     } catch (error) {
       console.error('Error saving settings:', error);
@@ -351,52 +366,61 @@ export function SettingsView() {
               </div>
             </CardHeader>
             <CardContent>
-              <div className="space-y-2">
-                {templates.map((template) => (
-                  <div
-                    key={template.id}
-                    className="flex items-center justify-between p-3 border border-slate-200 dark:border-slate-800 rounded-lg"
-                  >
-                    <div>
-                      <p className="font-medium text-slate-900 dark:text-white">
-                        {template.name}
-                      </p>
-                      <p className="text-sm text-slate-500 dark:text-slate-400">
-                        {template.duration}分 · {template.category} · 優先度:{' '}
-                        {template.priority === 'high'
-                          ? '高'
-                          : template.priority === 'medium'
-                          ? '中'
-                          : '低'}
-                      </p>
+              {templates.length === 0 ? (
+                <div className="text-center py-8 text-slate-500 dark:text-slate-400">
+                  <p className="text-sm">テンプレートがありません</p>
+                  <p className="text-xs mt-1">「追加」ボタンから新しいテンプレートを作成できます</p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {templates.map((template) => (
+                    <div
+                      key={template.id}
+                      className="flex items-center justify-between p-3 border border-slate-200 dark:border-slate-800 rounded-lg"
+                    >
+                      <div>
+                        <p className="font-medium text-slate-900 dark:text-white">
+                          {template.name}
+                        </p>
+                        <p className="text-sm text-slate-500 dark:text-slate-400">
+                          {template.duration}分 · {template.category} · 優先度:{' '}
+                          {template.priority === 'high'
+                            ? '高'
+                            : template.priority === 'medium'
+                            ? '中'
+                            : '低'}
+                        </p>
+                      </div>
+                      <div className="flex gap-1">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-12 w-12"
+                          onClick={() => handleOpenTemplateModal(template)}
+                        >
+                          <Edit2 className="h-5 w-5" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-12 w-12"
+                          onClick={async () => {
+                            try {
+                              await deleteTemplate(template.id);
+                              toast.success('テンプレートを削除しました');
+                            } catch (error) {
+                              console.error('Error deleting template:', error);
+                              toast.error('テンプレートの削除に失敗しました');
+                            }
+                          }}
+                        >
+                          <Trash2 className="h-5 w-5 text-red-600" />
+                        </Button>
+                      </div>
                     </div>
-                    <div className="flex gap-2">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => handleOpenTemplateModal(template)}
-                      >
-                        <Edit2 className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={async () => {
-                          try {
-                            await deleteTemplate(template.id);
-                            toast.success('テンプレートを削除しました');
-                          } catch (error) {
-                            console.error('Error deleting template:', error);
-                            toast.error('テンプレートの削除に失敗しました');
-                          }
-                        }}
-                      >
-                        <Trash2 className="h-4 w-4 text-red-600" />
-                      </Button>
-                    </div>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              )}
             </CardContent>
           </Card>
 
@@ -477,10 +501,10 @@ export function SettingsView() {
                   <Label>学習時間（時間/月）</Label>
                   <Input
                     type="number"
+                    min="0"
+                    max="744"
                     value={localGoals.studyHours}
-                    onChange={(e) =>
-                      handleGoalChange('studyHours', parseInt(e.target.value))
-                    }
+                    onChange={(e) => handleNumberInput('studyHours', e.target.value, 0, 744)}
                   />
                 </div>
               </div>
@@ -495,10 +519,10 @@ export function SettingsView() {
                   <Label>目標学習時間（合計時間）</Label>
                   <Input
                     type="number"
+                    min="0"
+                    max="100000"
                     value={localGoals.studyLongTermHours}
-                    onChange={(e) =>
-                      handleGoalChange('studyLongTermHours', parseInt(e.target.value))
-                    }
+                    onChange={(e) => handleNumberInput('studyLongTermHours', e.target.value, 0, 100000)}
                   />
                 </div>
                 <div className="space-y-2">
@@ -523,10 +547,10 @@ export function SettingsView() {
                   <Label>Todo達成率（%）</Label>
                   <Input
                     type="number"
+                    min="0"
+                    max="100"
                     value={localGoals.todoCompletionRate}
-                    onChange={(e) =>
-                      handleGoalChange('todoCompletionRate', parseInt(e.target.value))
-                    }
+                    onChange={(e) => handleNumberInput('todoCompletionRate', e.target.value, 0, 100)}
                   />
                 </div>
               </div>
@@ -553,8 +577,6 @@ export function SettingsView() {
                       // ストアから最新のcategoriesを取得してlocalCategoriesも更新
                       const updatedCategories = useAppStore.getState().categories;
                       setLocalCategories(updatedCategories);
-
-                      setRefreshKey((prev) => prev + 1);
                     } catch (error) {
                       console.error('Error adding category:', error);
                       toast.error('カテゴリーの追加に失敗しました');
@@ -567,7 +589,7 @@ export function SettingsView() {
               </div>
             </CardHeader>
             <CardContent>
-              <div className="space-y-3" key={refreshKey}>
+              <div className="space-y-3">
                 {localCategories.map((category) => (
                   <div
                     key={category.id}
@@ -584,7 +606,7 @@ export function SettingsView() {
                         );
                         setHasChanges(true);
                       }}
-                      className="w-12 h-10 cursor-pointer"
+                      className="w-16 h-12 cursor-pointer"
                     />
                     <Input
                       value={category.name}
@@ -596,13 +618,23 @@ export function SettingsView() {
                         );
                         setHasChanges(true);
                       }}
-                      className="flex-1"
+                      className="flex-1 h-12 text-base"
                     />
                     {!category.isDefault && (
                       <Button
                         variant="ghost"
                         size="icon"
+                        className="h-12 w-12"
                         onClick={async () => {
+                          const usage = checkCategoryUsage(category.name);
+                          if (usage.total > 0) {
+                            toast.error(
+                              `このカテゴリーは${usage.usedInEvents}件のスケジュールと${usage.usedInTemplates}件のテンプレートで使用されています。先にそれらを削除または変更してください。`,
+                              { duration: 5000 }
+                            );
+                            return;
+                          }
+
                           try {
                             await useAppStore.getState().deleteCategory(category.id);
                             toast.success('カテゴリーを削除しました');
@@ -616,7 +648,7 @@ export function SettingsView() {
                           }
                         }}
                       >
-                        <Trash2 className="h-4 w-4 text-red-600" />
+                        <Trash2 className="h-5 w-5 text-red-600" />
                       </Button>
                     )}
                     {category.isDefault && (

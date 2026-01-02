@@ -149,9 +149,12 @@ export function TemplateEditModal({
                 min="1"
                 max="1440"
                 value={formData.duration}
-                onChange={(e) =>
-                  setFormData({ ...formData, duration: parseInt(e.target.value) })
-                }
+                onChange={(e) => {
+                  const value = e.target.value === '' ? 1 : parseInt(e.target.value);
+                  if (isNaN(value)) return;
+                  const clampedValue = Math.max(1, Math.min(1440, value));
+                  setFormData({ ...formData, duration: clampedValue });
+                }}
                 required
               />
             </div>
