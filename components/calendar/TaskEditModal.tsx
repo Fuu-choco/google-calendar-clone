@@ -27,6 +27,7 @@ import { format } from 'date-fns';
 import { AIEventInput } from './AIEventInput';
 import { ParsedEvent } from '@/lib/ai/eventParser';
 import { Separator } from '@/components/ui/separator';
+import { generateId } from '@/lib/utils';
 
 interface TaskEditModalProps {
   open: boolean;
@@ -99,11 +100,13 @@ export function TaskEditModal({
       }));
       // 新規作成時もAI日付をクリア
       setAiDate(null);
-    } else if (defaultDate && defaultDate instanceof Date) {
-      const endTime = new Date(defaultDate.getTime() + 60 * 60 * 1000);
+    } else if (defaultDate) {
+      // defaultDateをDateオブジェクトに変換（文字列の場合にも対応）
+      const dateObj = defaultDate instanceof Date ? defaultDate : new Date(defaultDate);
+      const endTime = new Date(dateObj.getTime() + 60 * 60 * 1000);
       setFormData((prev) => ({
         ...prev,
-        startTime: format(defaultDate, 'HH:mm'),
+        startTime: format(dateObj, 'HH:mm'),
         endTime: format(endTime, 'HH:mm'),
       }));
       // 新規作成時もAI日付をクリア
@@ -167,7 +170,7 @@ export function TaskEditModal({
     const eventColor = category?.color || '#3B82F6';
 
     const eventData: CalendarEvent = {
-      id: event?.id || crypto.randomUUID(),
+      id: event?.id || generateId(),
       title: formData.title,
       start: startDate.toISOString(),
       end: endDate.toISOString(),

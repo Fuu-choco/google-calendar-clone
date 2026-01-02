@@ -1,12 +1,13 @@
 import { Todo } from './types';
 import { format, addDays, addWeeks, addMonths, parseISO, startOfDay, isAfter, isSameDay } from 'date-fns';
+import { generateId } from './utils';
 
 /**
  * 繰り返しTodoから次のTodoを生成する
  */
 export function generateNextTodo(parentTodo: Todo, nextDate: Date): Todo {
   return {
-    id: crypto.randomUUID(),
+    id: generateId(),
     content: parentTodo.content,
     completed: false,
     dueDate: format(nextDate, 'yyyy-MM-dd'),

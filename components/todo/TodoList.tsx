@@ -12,6 +12,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { RepeatType } from '@/lib/types';
+import { generateId } from '@/lib/utils';
 
 export function TodoList() {
   const { todos, addTodo, toggleTodo, deleteTodo, setCurrentTab, setViewMode, selectedDate, setSelectedDate } = useAppStore();
@@ -46,7 +47,7 @@ export function TodoList() {
         const selectedDateObj = parseISO(selectedDateStr);
 
         await addTodo({
-          id: crypto.randomUUID(),
+          id: generateId(),
           content: newTodoText,
           completed: false,
           dueDate: selectedDateStr,

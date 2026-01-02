@@ -13,6 +13,7 @@ import {
   initializeDatabase,
 } from './indexedDB';
 import { generateRepeatTodos } from './repeatTodoGenerator';
+import { generateId } from './utils';
 
 interface AppState {
   currentDate: Date;
@@ -431,7 +432,7 @@ export const useAppStore = create<AppState>()(
       addCategory: async (category) => {
         try {
           const newCategory: CategoryItem = {
-            id: crypto.randomUUID(),
+            id: generateId(),
             ...category,
           };
           await categoriesDB.add(newCategory);
@@ -516,7 +517,7 @@ export const useAppStore = create<AppState>()(
       addNotification: (notification) => {
         const newNotification: AppNotification = {
           ...notification,
-          id: crypto.randomUUID(),
+          id: generateId(),
           timestamp: new Date().toISOString(),
           read: false,
         };
