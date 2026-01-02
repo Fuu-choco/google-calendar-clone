@@ -3,7 +3,7 @@
 import { Todo } from '@/lib/types';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Button } from '@/components/ui/button';
-import { Trash2 } from 'lucide-react';
+import { Trash2, Repeat } from 'lucide-react';
 import { format, isToday, isTomorrow, parseISO, isBefore, startOfDay } from 'date-fns';
 import { ja } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
@@ -68,6 +68,14 @@ export function TodoItem({ todo, onToggle, onDelete }: TodoItemProps) {
           >
             {getDateLabel()}期限
           </span>
+          {todo.repeat && todo.repeat !== 'none' && (
+            <span className="flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-purple-100 dark:bg-purple-950 text-purple-700 dark:text-purple-400">
+              <Repeat className="h-3 w-3" />
+              {todo.repeat === 'daily' && '毎日'}
+              {todo.repeat === 'weekly' && '毎週'}
+              {todo.repeat === 'monthly' && '毎月'}
+            </span>
+          )}
           {isCarriedOver && !todo.completed && (
             <span className="text-xs text-slate-500 dark:text-slate-400">
               ({format(createdDate, 'M/d')}から)

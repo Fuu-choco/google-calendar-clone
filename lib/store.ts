@@ -12,6 +12,7 @@ import {
   goalsDB,
   initializeDatabase,
 } from './indexedDB';
+import { generateRepeatTodos } from './repeatTodoGenerator';
 
 interface AppState {
   currentDate: Date;
@@ -233,9 +234,23 @@ export const useAppStore = create<AppState>()(
             goalsDB.get(),
           ]);
 
+          // 繰り返しTodoを自動生成（30日先まで）
+          const newRepeatTodos = generateRepeatTodos(todos, new Date(), 30);
+
+          // 新しく生成されたTodoをIndexedDBに保存
+          if (newRepeatTodos.length > 0) {
+            console.log(`📅 Generating ${newRepeatTodos.length} repeat todos...`);
+            for (const newTodo of newRepeatTodos) {
+              await todosDB.add(newTodo);
+            }
+          }
+
+          // 全Todoを再取得（新しく生成されたものを含む）
+          const allTodos = [...todos, ...newRepeatTodos];
+
           set({
             events,
-            todos,
+            todos: allTodos,
             templates: templates.length > 0 ? templates : mockTemplates,
             categories: categories.length > 0 ? categories : defaultCategories,
             userSettings: userSettings || defaultSettings,

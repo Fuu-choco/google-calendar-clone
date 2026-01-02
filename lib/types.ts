@@ -44,6 +44,10 @@ export interface Todo {
   dueDate: string;
   createdDate: string;
   priority?: Priority;
+  repeat?: RepeatType;
+  repeatDays?: number[]; // 毎週の場合：曜日(0-6)
+  repeatDate?: number; // 毎月の場合：日付(1-31)
+  parentTodoId?: string; // 繰り返しTodoの親ID
 }
 
 export interface UserSettings {

@@ -85,7 +85,7 @@ export function TaskEditModal({
         notification15: event.notificationMinutes.includes(15),
         notificationCustom: false,
         notificationCustomMinutes: 10,
-        repeat: event.repeat,
+        repeat: event.repeat || 'none',
         repeatDays: event.repeatDays || [],
         repeatDate: event.repeatDate || 1,
       });
@@ -167,7 +167,7 @@ export function TaskEditModal({
     const eventColor = category?.color || '#3B82F6';
 
     const eventData: CalendarEvent = {
-      id: event?.id || Math.random().toString(),
+      id: event?.id || crypto.randomUUID(),
       title: formData.title,
       start: startDate.toISOString(),
       end: endDate.toISOString(),
@@ -178,9 +178,9 @@ export function TaskEditModal({
       showInMonthView: formData.showInMonthView,
       notificationEnabled: formData.notificationEnabled,
       notificationMinutes,
-      repeat: formData.repeat,
-      repeatDays: formData.repeatDays,
-      repeatDate: formData.repeatDate,
+      repeat: formData.repeat || 'none',
+      repeatDays: formData.repeat === 'weekly' ? formData.repeatDays : undefined,
+      repeatDate: formData.repeat === 'monthly' ? formData.repeatDate : undefined,
     };
 
     try {

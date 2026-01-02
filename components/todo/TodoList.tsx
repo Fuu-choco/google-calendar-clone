@@ -5,15 +5,18 @@ import { useAppStore } from '@/lib/store';
 import { TodoItem } from './TodoItem';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Plus, Calendar } from 'lucide-react';
+import { Plus, Calendar, Repeat } from 'lucide-react';
 import { format, isToday, isTomorrow, parseISO, startOfDay, isBefore, isAfter, addDays } from 'date-fns';
 import { ja } from 'date-fns/locale';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { RepeatType } from '@/lib/types';
 
 export function TodoList() {
   const { todos, addTodo, toggleTodo, deleteTodo, setCurrentTab, setViewMode, selectedDate, setSelectedDate } = useAppStore();
   const [newTodoText, setNewTodoText] = useState('');
+  const [repeatType, setRepeatType] = useState<RepeatType>('none');
 
   const today = startOfDay(new Date());
 
@@ -40,14 +43,20 @@ export function TodoList() {
     if (newTodoText.trim()) {
       try {
         const todayStr = format(new Date(), 'yyyy-MM-dd');
+        const selectedDateObj = parseISO(selectedDateStr);
+
         await addTodo({
           id: crypto.randomUUID(),
           content: newTodoText,
           completed: false,
           dueDate: selectedDateStr,
           createdDate: todayStr,
+          repeat: repeatType,
+          repeatDays: repeatType === 'weekly' ? [selectedDateObj.getDay()] : undefined,
+          repeatDate: repeatType === 'monthly' ? selectedDateObj.getDate() : undefined,
         });
         setNewTodoText('');
+        setRepeatType('none');
       } catch (error) {
         console.error('Todoの追加に失敗しました:', error);
         alert('Todoの追加に失敗しました。もう一度お試しください。');
@@ -102,6 +111,27 @@ export function TodoList() {
               onKeyPress={handleKeyPress}
               className="flex-1"
             />
+            <Select value={repeatType} onValueChange={(value: RepeatType) => setRepeatType(value)}>
+              <SelectTrigger className="w-32">
+                <SelectValue>
+                  <div className="flex items-center gap-1">
+                    <Repeat className="h-3 w-3" />
+                    <span className="text-xs">
+                      {repeatType === 'none' && '繰り返しなし'}
+                      {repeatType === 'daily' && '毎日'}
+                      {repeatType === 'weekly' && '毎週'}
+                      {repeatType === 'monthly' && '毎月'}
+                    </span>
+                  </div>
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">繰り返しなし</SelectItem>
+                <SelectItem value="daily">毎日</SelectItem>
+                <SelectItem value="weekly">毎週</SelectItem>
+                <SelectItem value="monthly">毎月</SelectItem>
+              </SelectContent>
+            </Select>
             <Button onClick={handleAddTodo} size="icon">
               <Plus className="h-4 w-4" />
             </Button>
@@ -160,7 +190,13 @@ export function TodoList() {
                       </span>
                     </h3>
                     <div className="space-y-2">
-                      {dateTodos.map((todo) => (
+                      {dateTodos
+                        .sort((a, b) => {
+                          // 未完了を上に、完了済みを下に
+                          if (a.completed === b.completed) return 0;
+                          return a.completed ? 1 : -1;
+                        })
+                        .map((todo) => (
                         <TodoItem
                           key={todo.id}
                           todo={todo}
