@@ -91,8 +91,8 @@ export function SettingsView() {
         await updateTemplate(editingTemplate.id, templateData);
         toast.success('テンプレートを更新しました');
       } else {
-        // 新規作成
-        await addTemplate({ id: '', ...templateData });
+        // 新規作成（IDはストア側で自動生成される）
+        await addTemplate(templateData as Template);
         toast.success('テンプレートを追加しました');
       }
     } catch (error) {
@@ -421,17 +421,19 @@ export function SettingsView() {
                       <SelectValue placeholder="選択してください" />
                     </SelectTrigger>
                     <SelectContent>
-                      {categories.map((category) => (
-                        <SelectItem key={category.id} value={category.id}>
-                          <div className="flex items-center gap-2">
-                            <div
-                              className="w-3 h-3 rounded-full"
-                              style={{ backgroundColor: category.color }}
-                            />
-                            {category.name}
-                          </div>
-                        </SelectItem>
-                      ))}
+                      {categories
+                        .filter((category) => category.id && category.id.trim() !== '')
+                        .map((category) => (
+                          <SelectItem key={category.id} value={category.id}>
+                            <div className="flex items-center gap-2">
+                              <div
+                                className="w-3 h-3 rounded-full"
+                                style={{ backgroundColor: category.color }}
+                              />
+                              {category.name}
+                            </div>
+                          </SelectItem>
+                        ))}
                     </SelectContent>
                   </Select>
                 </div>
@@ -447,17 +449,19 @@ export function SettingsView() {
                       <SelectValue placeholder="選択してください" />
                     </SelectTrigger>
                     <SelectContent>
-                      {categories.map((category) => (
-                        <SelectItem key={category.id} value={category.id}>
-                          <div className="flex items-center gap-2">
-                            <div
-                              className="w-3 h-3 rounded-full"
-                              style={{ backgroundColor: category.color }}
-                            />
-                            {category.name}
-                          </div>
-                        </SelectItem>
-                      ))}
+                      {categories
+                        .filter((category) => category.id && category.id.trim() !== '')
+                        .map((category) => (
+                          <SelectItem key={category.id} value={category.id}>
+                            <div className="flex items-center gap-2">
+                              <div
+                                className="w-3 h-3 rounded-full"
+                                style={{ backgroundColor: category.color }}
+                              />
+                              {category.name}
+                            </div>
+                          </SelectItem>
+                        ))}
                     </SelectContent>
                   </Select>
                 </div>

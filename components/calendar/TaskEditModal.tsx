@@ -239,11 +239,13 @@ export function TaskEditModal({
                 <SelectValue placeholder="選択してください" />
               </SelectTrigger>
               <SelectContent>
-                {templates.map((template) => (
-                  <SelectItem key={template.id} value={template.id}>
-                    {template.name} ({template.duration}分)
-                  </SelectItem>
-                ))}
+                {templates
+                  .filter((template) => template.id && template.id.trim() !== '')
+                  .map((template) => (
+                    <SelectItem key={template.id} value={template.id}>
+                      {template.name} ({template.duration}分)
+                    </SelectItem>
+                  ))}
               </SelectContent>
             </Select>
           </div>
@@ -288,11 +290,13 @@ export function TaskEditModal({
                 <SelectValue placeholder="カテゴリを選択" />
               </SelectTrigger>
               <SelectContent>
-                {categories.map((category) => (
-                  <SelectItem key={category.id} value={category.name}>
-                    {category.name}
-                  </SelectItem>
-                ))}
+                {categories
+                  .filter((category) => category.name && category.name.trim() !== '')
+                  .map((category) => (
+                    <SelectItem key={category.id} value={category.name}>
+                      {category.name}
+                    </SelectItem>
+                  ))}
               </SelectContent>
             </Select>
           </div>

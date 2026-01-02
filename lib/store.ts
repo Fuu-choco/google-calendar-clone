@@ -388,8 +388,12 @@ export const useAppStore = create<AppState>()(
       // テンプレート操作
       addTemplate: async (template) => {
         try {
-          await templatesDB.add(template);
-          set((state) => ({ templates: [...state.templates, template] }));
+          const newTemplate: Template = {
+            ...template,
+            id: template.id || generateId(),
+          };
+          await templatesDB.add(newTemplate);
+          set((state) => ({ templates: [...state.templates, newTemplate] }));
           console.log('✅ Template added successfully');
         } catch (error) {
           console.error('❌ Error adding template:', error);
