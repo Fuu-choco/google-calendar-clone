@@ -21,6 +21,7 @@ export default function Home() {
   const { currentTab, fetchData, isLoading, events, addNotification, currentDate } = useAppStore();
   const [showAddEvent, setShowAddEvent] = useState(false);
   const [showMobileSidebar, setShowMobileSidebar] = useState(false);
+  const [selectedEvent, setSelectedEvent] = useState<any>(null);
   const scheduledNotifications = useRef<Map<string, number[]>>(new Map());
 
   // IndexedDBからデータを取得（初回マウント時のみ）
@@ -56,10 +57,22 @@ export default function Home() {
     };
   }, [events, addNotification]);
 
+  const handleEventClick = (event: any) => {
+    setSelectedEvent(event);
+    setShowAddEvent(true);
+  };
+
+  const handleModalClose = (open: boolean) => {
+    setShowAddEvent(open);
+    if (!open) {
+      setSelectedEvent(null);
+    }
+  };
+
   const renderContent = () => {
     switch (currentTab) {
       case 'calendar':
-        return <CalendarView />;
+        return <CalendarView onEventClick={handleEventClick} />;
       case 'todo':
         return <TodoList />;
       case 'dashboard':
@@ -67,7 +80,7 @@ export default function Home() {
       case 'settings':
         return <SettingsView />;
       default:
-        return <CalendarView />;
+        return <CalendarView onEventClick={handleEventClick} />;
     }
   };
 
@@ -97,7 +110,8 @@ export default function Home() {
 
       <TaskEditModal
         open={showAddEvent}
-        onOpenChange={setShowAddEvent}
+        onOpenChange={handleModalClose}
+        event={selectedEvent}
         defaultDate={currentDate}
       />
     </div>

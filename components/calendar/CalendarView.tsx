@@ -12,15 +12,17 @@ import { ja } from 'date-fns/locale';
 import { generateDaySchedule } from '@/lib/scheduleGenerator';
 import { useToast } from '@/hooks/use-toast';
 
-export function CalendarView() {
+interface CalendarViewProps {
+  onEventClick?: (event: any) => void;
+}
+
+export function CalendarView({ onEventClick }: CalendarViewProps) {
   const {
     viewMode,
     setViewMode,
     currentDate,
     setCurrentDate,
     selectedDate,
-    selectedEvent,
-    setSelectedEvent,
     setCurrentTab,
     events,
     templates,
@@ -34,13 +36,12 @@ export function CalendarView() {
   const displayDate = selectedDate || currentDate;
 
   const handleEventClick = (event: any) => {
-    setSelectedEvent(event);
-    setDefaultTime(null);
-    setShowEditModal(true);
+    if (onEventClick) {
+      onEventClick(event);
+    }
   };
 
   const handleTimeSlotClick = (start: Date, end: Date) => {
-    setSelectedEvent(null);
     setDefaultTime({ start, end });
     setShowEditModal(true);
   };
@@ -53,7 +54,6 @@ export function CalendarView() {
     const end = new Date(start);
     end.setHours(10, 0, 0, 0); // デフォルト：10:00
 
-    setSelectedEvent(null);
     setDefaultTime({ start, end });
     setShowEditModal(true);
   };
@@ -61,7 +61,6 @@ export function CalendarView() {
   const handleModalClose = (open: boolean) => {
     setShowEditModal(open);
     if (!open) {
-      setSelectedEvent(null);
       setDefaultTime(null);
     }
   };
@@ -174,7 +173,6 @@ export function CalendarView() {
       <TaskEditModal
         open={showEditModal}
         onOpenChange={handleModalClose}
-        event={selectedEvent}
         defaultDate={displayDate}
         defaultTime={defaultTime}
       />
