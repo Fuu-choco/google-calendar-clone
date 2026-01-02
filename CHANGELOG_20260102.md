@@ -72,37 +72,138 @@ Google Calendar CloneにTodoリストの繰り返し機能、日表示での長�
 
 ---
 
-### 3. 日表示での長押し時間範囲選択機能
+### 3. 日表示での長押し時間範囲選択機能（1秒長押し + 下方向ドラッグ）
 
 **追加機能:**
-- タイムライン上で長押しして時間範囲を選択
+- 1秒間長押しで範囲選択モードを開始
+- 下方向へのドラッグのみ時間範囲を選択
+- 上方向へのドラッグは通常のスクロール
 - 選択範囲を青色でハイライト表示
-- 選択完了時に予定作成画面を自動的に開く
 - 15分単位で精密な範囲選択が可能
+- プルトゥリフレッシュを完全に防止
 
 **変更ファイル:**
 - `components/calendar/DayTimeline.tsx`
 
 **使い方:**
+
+| 操作 | 結果 |
+|------|------|
+| **短いタップ** | 1時間分の予定作成 |
+| **タップ + スクロール** | 通常のスクロール |
+| **1秒長押し + 下ドラッグ** | 時間範囲選択 |
+| **1秒長押し + 上ドラッグ** | キャンセル |
+
+**ステップバイステップ（範囲選択）:**
 ```
-1. 空白の時間枠を長押し
-2. 上または下にドラッグして範囲を選択
-3. 指を離すと予定作成画面が開く
-4. 選択した時間範囲が自動的に設定される
+1. 空白の時間枠を1秒間長押し
+2. バイブレーション + 緑色のインジケーター「下にドラッグして範囲を選択」
+3. 下方向にドラッグして範囲を選択（青色ハイライト表示）
+4. 指を離すと予定作成画面が開く
+5. 選択した時間範囲が自動的に設定される
 ```
 
 **技術実装:**
-- `handleTouchStart()` - タッチ開始時に選択モードを開始
-- `handleTouchMove()` - ドラッグ中に選択範囲を更新
-- `handleTouchEnd()` - 選択完了時に予定作成画面を開く
-- `getMinuteFromY()` - Y座標から時刻（分）を計算
-- 15分単位でスナップ処理
+
+**状態管理:**
+```typescript
+const [selecting, setSelecting] = useState(false);
+const [selectionStart, setSelectionStart] = useState<number | null>(null);
+const [selectionEnd, setSelectionEnd] = useState<number | null>(null);
+const [longPressTimer, setLongPressTimer] = useState<NodeJS.Timeout | null>(null);
+const [longPressStartY, setLongPressStartY] = useState<number | null>(null);
+const [isLongPressActivated, setIsLongPressActivated] = useState(false);
+const [hasMoved, setHasMoved] = useState(false);
+```
+
+**1秒長押しタイマー:**
+```typescript
+const timer = setTimeout(() => {
+  setIsLongPressActivated(true);
+  if (navigator.vibrate) {
+    navigator.vibrate(50); // バイブレーション
+  }
+}, 1000);
+```
+
+**移動方向の検知:**
+```typescript
+const moveDistance = touch.clientY - longPressStartY;
+
+// 下方向への移動（正の値）のみ選択モードを開始
+if (moveDistance > 20) {
+  setSelecting(true);
+} else if (moveDistance < -10) {
+  // 上方向への移動は選択をキャンセル
+  setIsLongPressActivated(false);
+}
+```
+
+**5重のリロード防止システム:**
+1. **useEffect - グローバルリスナー**
+   ```typescript
+   useEffect(() => {
+     const preventScroll = (e: TouchEvent) => {
+       if (selecting || isLongPressActivated) {
+         e.preventDefault();
+       }
+     };
+
+     if (selecting || isLongPressActivated) {
+       document.addEventListener('touchmove', preventScroll, { passive: false });
+       document.body.style.overflow = 'hidden';
+       document.body.style.overscrollBehavior = 'none';
+     }
+
+     return () => {
+       document.removeEventListener('touchmove', preventScroll);
+       document.body.style.overflow = '';
+       document.body.style.overscrollBehavior = 'auto';
+     };
+   }, [selecting, isLongPressActivated]);
+   ```
+
+2. **handleTouchMove - preventDefault**
+   ```typescript
+   if (!selecting && longPressStartY !== null) {
+     e.preventDefault(); // 長押し有効化中は常に呼ぶ
+   }
+   ```
+
+3. **react-swipeable無効化**
+   ```typescript
+   <ScrollArea {...((selecting || isLongPressActivated) ? {} : handlers)}>
+   ```
+
+4. **touchAction CSS**
+   ```typescript
+   style={{
+     touchAction: (selecting || isLongPressActivated) ? 'none' : 'auto'
+   }}
+   ```
+
+5. **body overscrollBehavior**
+   - useEffectで`'none'`に設定
 
 **視覚フィードバック:**
 ```typescript
+{/* 長押し準備中のインジケーター */}
+{isLongPressActivated && !selecting && selectionStart !== null && (
+  <div className="absolute left-16 right-0 bg-green-200 dark:bg-green-900 opacity-30 pointer-events-none z-20 border-2 border-green-500 dark:border-green-400"
+    style={{
+      top: `${selectionStart}px`,
+      height: '60px',
+    }}
+  >
+    <div className="flex items-center justify-center h-full text-green-700 dark:text-green-300 text-xs font-bold">
+      下にドラッグして範囲を選択
+    </div>
+  </div>
+)}
+
+{/* 選択範囲の表示 */}
 {selecting && selectionStart !== null && selectionEnd !== null && (
-  <div
-    className="absolute left-16 right-0 bg-blue-200 dark:bg-blue-900 opacity-50 pointer-events-none z-20 border-2 border-blue-500 dark:border-blue-400"
+  <div className="absolute left-16 right-0 bg-blue-200 dark:bg-blue-900 opacity-50 pointer-events-none z-20 border-2 border-blue-500 dark:border-blue-400"
     style={{
       top: `${Math.min(selectionStart, selectionEnd)}px`,
       height: `${Math.abs(selectionEnd - selectionStart) + 15}px`,
@@ -168,74 +269,78 @@ export function generateId(): string {
 
 ---
 
-### 2. 長押し選択時のプルトゥリフレッシュ防止
+### 2. 長押し選択時のプルトゥリフレッシュ防止（最終版）
 
-**問題:**
-- 時間範囲を選択するために下にドラッグするとブラウザがリロードされる
-- プルトゥリフレッシュが誤って発動
-- 選択中にスクロールが発生
+**問題の変遷:**
+1. 初期実装: 下にドラッグするとリロードが発生
+2. 第1回修正後: まだリロードが発生
+3. 第2回修正後: スクロールができない、タップで予定追加できない
+4. 最終修正: すべて解決！
 
-**修正内容（5重の防御システム）:**
+**最終的な修正内容（5重の防御システム + スマート検知）:**
 
-**1. handleTouchStartでpreventDefault**
-```typescript
-const handleTouchStart = (e: React.TouchEvent, containerRef: HTMLElement) => {
-  e.preventDefault();
-  // タッチ開始処理...
-  document.body.style.overscrollBehavior = 'none';
-};
-```
-
-**2. handleTouchMoveでpreventDefault**
-```typescript
-const handleTouchMove = (e: React.TouchEvent, containerRef: HTMLElement) => {
-  if (!selecting || selectionStart === null) return;
-  e.preventDefault();
-  // タッチ移動処理...
-};
-```
-
-**3. グローバルtouchmoveイベントをブロック**
+**1. useEffect - グローバルリスナー（selecting OR isLongPressActivated）**
 ```typescript
 useEffect(() => {
   const preventScroll = (e: TouchEvent) => {
-    if (selecting) {
+    if (selecting || isLongPressActivated) {
       e.preventDefault();
     }
   };
 
-  if (selecting) {
+  if (selecting || isLongPressActivated) {
     document.addEventListener('touchmove', preventScroll, { passive: false });
     document.body.style.overflow = 'hidden';
+    document.body.style.overscrollBehavior = 'none';
   }
 
   return () => {
     document.removeEventListener('touchmove', preventScroll);
     document.body.style.overflow = '';
+    document.body.style.overscrollBehavior = 'auto';
   };
-}, [selecting]);
+}, [selecting, isLongPressActivated]);
 ```
 
-**4. touchActionプロパティで制御**
+**2. handleTouchMove - 長押し有効化中は常にpreventDefault**
+```typescript
+if (!selecting && longPressStartY !== null) {
+  e.preventDefault(); // ここが重要！
+  // 移動方向の判定...
+}
+```
+
+**3. react-swipeable無効化（isLongPressActivated時も）**
+```typescript
+<ScrollArea {...((selecting || isLongPressActivated) ? {} : handlers)}>
+```
+
+**4. touchAction CSS（isLongPressActivated時も）**
 ```typescript
 style={{
-  height: '1440px',
-  touchAction: selecting ? 'none' : 'auto'
+  touchAction: (selecting || isLongPressActivated) ? 'none' : 'auto'
 }}
 ```
 
-**5. react-swipeableハンドラーの条件付き無効化**
+**5. hasMoved フラグで移動を追跡**
 ```typescript
-<ScrollArea className="flex-1" {...(selecting ? {} : handlers)}>
+const [hasMoved, setHasMoved] = useState(false);
+
+// スクロールした場合は予定作成しない
+if (!hasMoved && longPressStartY !== null && selectionStart !== null) {
+  // 短いタップのみ予定作成
+}
 ```
 
 **変更ファイル:**
 - `components/calendar/DayTimeline.tsx`
 
 **効果:**
-- 確実にプルトゥリフレッシュを防止
-- スムーズな時間範囲選択が可能
-- 選択完了後は通常のスクロールに戻る
+- ✅ プルトゥリフレッシュを完全に防止
+- ✅ 通常のスクロールは正常に動作
+- ✅ 短いタップで予定追加が可能
+- ✅ 1秒長押し + 下ドラッグで範囲選択
+- ✅ すべての操作が干渉せずに共存
 
 ---
 
@@ -394,14 +499,57 @@ const { currentTab, fetchData, isLoading, events, addNotification, currentDate }
 
 ### Gitコミット履歴
 
+**基本機能の実装:**
 1. **feat: Todoリストに繰り返し機能を追加 & チェック済みを下部へ移動**
+   - 繰り返し設定（毎日・毎週・毎月）を実装
+   - 完了済みTodoの自動ソート
+
 2. **fix: TaskEditModalのdefaultDate未設定エラーを修正**
+   - currentDateをstoreから取得して渡す
+
 3. **fix: モバイルブラウザ互換性の修正（crypto.randomUUID、Select要素）**
+   - generateId()関数でフォールバック実装
+   - SelectValueにplaceholder追加
+
+**長押し機能の実装と改善:**
 4. **feat: 日表示に長押し時間範囲選択機能を追加**
+   - タッチイベントでの時間範囲選択
+   - 15分単位のスナップ処理
+
 5. **fix: 長押し選択時の不要なテキスト選択を防止**
+   - select-noneクラス追加
+   - data-event-card属性で検出
+
 6. **fix: 長押し選択中のプルトゥリフレッシュを防止**
+   - preventDefault追加
+   - overscrollBehavior設定
+
 7. **fix: 選択中のスワイプハンドラーとプルトゥリフレッシュを完全に無効化**
+   - react-swipeableハンドラーを条件付き無効化
+   - touchAction CSS追加
+
 8. **fix: プルトゥリフレッシュを5重の防御で完全ブロック**
+   - グローバルリスナー追加
+   - { passive: false }で強制ブロック
+
+**長押し機能の最適化:**
+9. **feat: 長押し時間範囲選択を2秒長押し+下方向ドラッグに改善**
+   - 2秒タイマー実装
+   - 移動方向検知（下のみ選択開始）
+   - 緑色インジケーター追加
+
+10. **fix: 長押し機能の修正 - スクロールと短いタップを正常に動作させる**
+    - hasMovedフラグ追加
+    - 短いタップで1時間分の予定作成
+    - スクロール干渉を解決
+
+11. **fix: 長押し時間を1秒に変更 & リロード問題を完全修正**
+    - タイマーを2秒→1秒に短縮
+    - isLongPressActivated時もpreventDefault
+    - すべての操作が共存
+
+12. **docs: 2026年1月2日の更新履歴を追加**
+    - CHANGELOG_20260102.md作成
 
 ### デプロイ先
 - **GitHub:** https://github.com/Fuu-choco/google-calendar-clone
@@ -417,8 +565,11 @@ const { currentTab, fetchData, isLoading, events, addNotification, currentDate }
 - 繰り返しTodoで日常的なタスク管理が簡単に
 - 完了済みTodoが下部に移動し、未完了タスクに集中できる
 - モバイルで予定追加がスムーズに動作
-- 長押しで複数時間枠の予定が素早く作成可能
-- プルトゥリフレッシュが防止され、快適な操作性
+- **1秒長押し + 下ドラッグ**で複数時間枠の予定が素早く作成可能
+- 短いタップで1時間分の予定を即座に作成
+- 通常のスクロールと時間範囲選択が干渉しない
+- プルトゥリフレッシュが完全に防止され、快適な操作性
+- バイブレーションと視覚的フィードバックで直感的な操作
 
 **ネガティブ:**
 - なし（既存データに影響なし、後方互換性を維持）
