@@ -35,6 +35,7 @@ export function DayTimeline({ onEventClick, onTimeSlotClick, onTodoClick, onAuto
   const [longPressTimer, setLongPressTimer] = useState<NodeJS.Timeout | null>(null);
   const [longPressStartY, setLongPressStartY] = useState<number | null>(null);
   const [isLongPressActivated, setIsLongPressActivated] = useState(false);
+  const [hasMoved, setHasMoved] = useState(false);
 
   // 選択中はグローバルなタッチイベントを防ぐ
   useEffect(() => {
@@ -158,6 +159,7 @@ export function DayTimeline({ onEventClick, onTimeSlotClick, onTodoClick, onAuto
     setSelectionStart(minute);
     setSelectionEnd(minute);
     setIsLongPressActivated(false);
+    setHasMoved(false);
 
     // 2秒後に長押しを有効化
     const timer = setTimeout(() => {
@@ -181,10 +183,15 @@ export function DayTimeline({ onEventClick, onTimeSlotClick, onTodoClick, onAuto
         const moveDistance = touch.clientY - longPressStartY;
         // 10px以上移動したらタイマーをキャンセル（通常のスクロール）
         if (Math.abs(moveDistance) > 10) {
+          setHasMoved(true);
           clearTimeout(longPressTimer);
           setLongPressTimer(null);
+          setLongPressStartY(null);
+          setSelectionStart(null);
+          setSelectionEnd(null);
         }
       }
+      // 通常のスクロールを許可するため、returnしてスクロールを許可
       return;
     }
 
@@ -194,14 +201,21 @@ export function DayTimeline({ onEventClick, onTimeSlotClick, onTodoClick, onAuto
 
       // 下方向への移動（正の値）のみ選択モードを開始
       if (moveDistance > 20) {
+        setHasMoved(true);
         setSelecting(true);
         // body要素のoverscroll-behaviorを設定
         document.body.style.overscrollBehavior = 'none';
+        e.preventDefault(); // ここでpreventDefault
       } else if (moveDistance < -10) {
         // 上方向への移動は選択をキャンセル
+        setHasMoved(true);
         setIsLongPressActivated(false);
         setSelectionStart(null);
         setSelectionEnd(null);
+        setLongPressStartY(null);
+        return;
+      } else {
+        // まだ閾値に達していない場合は何もしない
         return;
       }
     }
@@ -227,30 +241,35 @@ export function DayTimeline({ onEventClick, onTimeSlotClick, onTodoClick, onAuto
     // body要素のoverscroll-behaviorを元に戻す
     document.body.style.overscrollBehavior = 'auto';
 
-    if (!selecting || selectionStart === null || selectionEnd === null) {
-      // 状態をリセット
-      setSelecting(false);
-      setSelectionStart(null);
-      setSelectionEnd(null);
-      setIsLongPressActivated(false);
-      setLongPressStartY(null);
-      return;
-    }
+    // 選択モードの場合
+    if (selecting && selectionStart !== null && selectionEnd !== null) {
+      const startMinute = Math.min(selectionStart, selectionEnd);
+      const endMinute = Math.max(selectionStart, selectionEnd);
 
-    const startMinute = Math.min(selectionStart, selectionEnd);
-    const endMinute = Math.max(selectionStart, selectionEnd);
+      // 最低15分の選択を保証
+      const finalEndMinute = endMinute === startMinute ? startMinute + 60 : endMinute + 15;
 
-    // 最低15分の選択を保証
-    const finalEndMinute = endMinute === startMinute ? startMinute + 60 : endMinute + 15;
+      const start = new Date(displayDate);
+      start.setHours(Math.floor(startMinute / 60), startMinute % 60, 0, 0);
 
-    const start = new Date(displayDate);
-    start.setHours(Math.floor(startMinute / 60), startMinute % 60, 0, 0);
+      const end = new Date(displayDate);
+      end.setHours(Math.floor(finalEndMinute / 60), finalEndMinute % 60, 0, 0);
 
-    const end = new Date(displayDate);
-    end.setHours(Math.floor(finalEndMinute / 60), finalEndMinute % 60, 0, 0);
+      if (onTimeSlotClick) {
+        onTimeSlotClick(start, end);
+      }
+    } else if (!hasMoved && longPressStartY !== null && selectionStart !== null) {
+      // 短いタップ（移動していない、かつタッチが終了）
+      // 1時間分の予定を作成
+      const start = new Date(displayDate);
+      start.setHours(Math.floor(selectionStart / 60), selectionStart % 60, 0, 0);
 
-    if (onTimeSlotClick) {
-      onTimeSlotClick(start, end);
+      const end = new Date(start);
+      end.setTime(start.getTime() + 60 * 60 * 1000); // 1時間後
+
+      if (onTimeSlotClick) {
+        onTimeSlotClick(start, end);
+      }
     }
 
     // 状態をリセット
@@ -259,6 +278,7 @@ export function DayTimeline({ onEventClick, onTimeSlotClick, onTodoClick, onAuto
     setSelectionEnd(null);
     setIsLongPressActivated(false);
     setLongPressStartY(null);
+    setHasMoved(false);
   };
 
   const handleTimeSlotClick = (hour: number) => {
