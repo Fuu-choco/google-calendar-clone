@@ -121,7 +121,7 @@ export function SettingsView() {
                     }
                   >
                     <SelectTrigger>
-                      <SelectValue />
+                      <SelectValue placeholder="選択してください" />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="朝型">朝型</SelectItem>
@@ -139,7 +139,7 @@ export function SettingsView() {
                     }
                   >
                     <SelectTrigger>
-                      <SelectValue />
+                      <SelectValue placeholder="選択してください" />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="25">25分</SelectItem>
@@ -158,7 +158,7 @@ export function SettingsView() {
                     }
                   >
                     <SelectTrigger>
-                      <SelectValue />
+                      <SelectValue placeholder="選択してください" />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="5">5分</SelectItem>
@@ -226,7 +226,7 @@ export function SettingsView() {
                       }
                     >
                       <SelectTrigger>
-                        <SelectValue />
+                        <SelectValue placeholder="選択してください" />
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="5">5分前</SelectItem>
@@ -312,7 +312,7 @@ export function SettingsView() {
                       }
                     >
                       <SelectTrigger>
-                        <SelectValue />
+                        <SelectValue placeholder="選択してください" />
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="1">1時間</SelectItem>
@@ -404,7 +404,7 @@ export function SettingsView() {
                     }
                   >
                     <SelectTrigger>
-                      <SelectValue />
+                      <SelectValue placeholder="選択してください" />
                     </SelectTrigger>
                     <SelectContent>
                       {categories.map((category) => (
@@ -430,7 +430,7 @@ export function SettingsView() {
                     }
                   >
                     <SelectTrigger>
-                      <SelectValue />
+                      <SelectValue placeholder="選択してください" />
                     </SelectTrigger>
                     <SelectContent>
                       {categories.map((category) => (

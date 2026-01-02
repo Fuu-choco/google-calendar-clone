@@ -285,7 +285,7 @@ export function TaskEditModal({
               }
             >
               <SelectTrigger>
-                <SelectValue />
+                <SelectValue placeholder="カテゴリを選択" />
               </SelectTrigger>
               <SelectContent>
                 {categories.map((category) => (
@@ -312,7 +312,7 @@ export function TaskEditModal({
               }
             >
               <SelectTrigger>
-                <SelectValue />
+                <SelectValue placeholder="優先度を選択" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="high">高</SelectItem>

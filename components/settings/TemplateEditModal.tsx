@@ -121,7 +121,7 @@ export function TemplateEditModal({
                 onValueChange={handleCategoryChange}
               >
                 <SelectTrigger id="category">
-                  <SelectValue />
+                  <SelectValue placeholder="選択してください" />
                 </SelectTrigger>
                 <SelectContent>
                   {categories.map((category) => (
@@ -163,7 +163,7 @@ export function TemplateEditModal({
                 }
               >
                 <SelectTrigger id="priority">
-                  <SelectValue />
+                  <SelectValue placeholder="選択してください" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="high">高</SelectItem>
