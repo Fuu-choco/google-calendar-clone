@@ -599,6 +599,7 @@ export function SettingsView() {
               <p className="text-xs text-slate-500 dark:text-slate-400 mt-2">
                 名前と色の変更は自動的に保存されます
               </p>
+            </div>
             </CardHeader>
             <CardContent>
               <div className="space-y-3">
