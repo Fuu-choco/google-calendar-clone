@@ -542,8 +542,14 @@ export function SettingsView() {
                       isDefault: false,
                     };
                     try {
+                      // ストアに追加（IDが自動生成される）
                       await useAppStore.getState().addCategory(newCategory);
                       toast.success('カテゴリーを追加しました');
+
+                      // ストアから最新のcategoriesを取得してlocalCategoriesも更新
+                      const updatedCategories = useAppStore.getState().categories;
+                      setLocalCategories(updatedCategories);
+
                       setRefreshKey((prev) => prev + 1);
                     } catch (error) {
                       console.error('Error adding category:', error);
@@ -596,6 +602,10 @@ export function SettingsView() {
                           try {
                             await useAppStore.getState().deleteCategory(category.id);
                             toast.success('カテゴリーを削除しました');
+
+                            // ストアから最新のcategoriesを取得してlocalCategoriesも更新
+                            const updatedCategories = useAppStore.getState().categories;
+                            setLocalCategories(updatedCategories);
                           } catch (error) {
                             console.error('Error deleting category:', error);
                             toast.error('カテゴリーの削除に失敗しました');
