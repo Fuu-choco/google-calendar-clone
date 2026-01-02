@@ -29,6 +29,9 @@ export function DayTimeline({ onEventClick, onTimeSlotClick, onTodoClick, onAuto
   } = useAppStore();
 
   const [draggedEvent, setDraggedEvent] = useState<string | null>(null);
+  const [selecting, setSelecting] = useState(false);
+  const [selectionStart, setSelectionStart] = useState<number | null>(null);
+  const [selectionEnd, setSelectionEnd] = useState<number | null>(null);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -111,7 +114,65 @@ export function DayTimeline({ onEventClick, onTimeSlotClick, onTodoClick, onAuto
     return top;
   };
 
+  const getMinuteFromY = (y: number, containerTop: number) => {
+    const relativeY = y - containerTop;
+    const minutePerPixel = 24 * 60 / 1440; // 1440pxで24時間
+    return Math.floor(relativeY * minutePerPixel / 15) * 15; // 15分単位で丸める
+  };
+
+  const handleTouchStart = (e: React.TouchEvent, containerRef: HTMLElement) => {
+    const touch = e.touches[0];
+    const containerRect = containerRef.getBoundingClientRect();
+    const minute = getMinuteFromY(touch.clientY, containerRect.top);
+
+    setSelecting(true);
+    setSelectionStart(minute);
+    setSelectionEnd(minute);
+  };
+
+  const handleTouchMove = (e: React.TouchEvent, containerRef: HTMLElement) => {
+    if (!selecting || selectionStart === null) return;
+
+    const touch = e.touches[0];
+    const containerRect = containerRef.getBoundingClientRect();
+    const minute = getMinuteFromY(touch.clientY, containerRect.top);
+
+    setSelectionEnd(minute);
+  };
+
+  const handleTouchEnd = () => {
+    if (!selecting || selectionStart === null || selectionEnd === null) {
+      setSelecting(false);
+      setSelectionStart(null);
+      setSelectionEnd(null);
+      return;
+    }
+
+    const startMinute = Math.min(selectionStart, selectionEnd);
+    const endMinute = Math.max(selectionStart, selectionEnd);
+
+    // 最低15分の選択を保証
+    const finalEndMinute = endMinute === startMinute ? startMinute + 60 : endMinute + 15;
+
+    const start = new Date(displayDate);
+    start.setHours(Math.floor(startMinute / 60), startMinute % 60, 0, 0);
+
+    const end = new Date(displayDate);
+    end.setHours(Math.floor(finalEndMinute / 60), finalEndMinute % 60, 0, 0);
+
+    if (onTimeSlotClick) {
+      onTimeSlotClick(start, end);
+    }
+
+    setSelecting(false);
+    setSelectionStart(null);
+    setSelectionEnd(null);
+  };
+
   const handleTimeSlotClick = (hour: number) => {
+    // 選択中でない場合のみ通常のクリック処理
+    if (selecting) return;
+
     console.log('⏰ Time slot clicked:', hour);
     if (!onTimeSlotClick) {
       console.log('❌ onTimeSlotClick is not defined');
@@ -177,7 +238,19 @@ export function DayTimeline({ onEventClick, onTimeSlotClick, onTodoClick, onAuto
         </div>
 
         <ScrollArea className="flex-1" {...handlers}>
-          <div className="relative" style={{ height: '1440px' }}>
+          <div
+            className="relative"
+            style={{ height: '1440px' }}
+            onTouchStart={(e) => {
+              const container = e.currentTarget;
+              handleTouchStart(e, container);
+            }}
+            onTouchMove={(e) => {
+              const container = e.currentTarget;
+              handleTouchMove(e, container);
+            }}
+            onTouchEnd={handleTouchEnd}
+          >
             {hours.map((hour) => (
               <div
                 key={hour}
@@ -195,6 +268,17 @@ export function DayTimeline({ onEventClick, onTimeSlotClick, onTodoClick, onAuto
                 />
               </div>
             ))}
+
+            {/* 選択範囲の表示 */}
+            {selecting && selectionStart !== null && selectionEnd !== null && (
+              <div
+                className="absolute left-16 right-0 bg-blue-200 dark:bg-blue-900 opacity-50 pointer-events-none z-20 border-2 border-blue-500 dark:border-blue-400"
+                style={{
+                  top: `${Math.min(selectionStart, selectionEnd)}px`,
+                  height: `${Math.abs(selectionEnd - selectionStart) + 15}px`,
+                }}
+              />
+            )}
 
             <div className="absolute left-16 right-0 top-0 bottom-0 pointer-events-none z-10">
               {dayEvents.map((event) => (
