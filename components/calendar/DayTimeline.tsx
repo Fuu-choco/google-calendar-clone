@@ -167,10 +167,14 @@ export function DayTimeline({ onEventClick, onTimeSlotClick, onTodoClick, onAuto
 
     // 1秒後に長押しを有効化
     const timer = setTimeout(() => {
+      console.log('⏱️ Long press activated!');
       setIsLongPressActivated(true);
       // バイブレーション（対応デバイスのみ）
       if (navigator.vibrate) {
-        navigator.vibrate(50);
+        const vibrated = navigator.vibrate(50);
+        console.log('✅ Long press vibration triggered:', vibrated);
+      } else {
+        console.log('❌ Vibration not supported');
       }
     }, 1000);
 
@@ -208,12 +212,21 @@ export function DayTimeline({ onEventClick, onTimeSlotClick, onTodoClick, onAuto
 
       // 下方向への移動（正の値）のみ選択モードを開始
       if (moveDistance > 20) {
+        console.log('🎯 Selection mode started!');
         setHasMoved(true);
         setSelecting(true);
         // 選択モードに入った時にバイブレーション
         if (navigator.vibrate) {
-          navigator.vibrate(30);
+          const vibrated = navigator.vibrate(30);
+          console.log('✅ Selection mode vibration triggered:', vibrated);
+        } else {
+          console.log('❌ Vibration not supported');
         }
+        // 現在のマス目を記録（次のマス目で比較するため）
+        const containerRect = containerRef.getBoundingClientRect();
+        const currentMinute = getMinuteFromY(touch.clientY, containerRect.top);
+        setLastVibrateMinute(currentMinute);
+        console.log('📍 Initial minute set:', currentMinute);
         // body要素のoverscroll-behaviorを設定
         document.body.style.overscrollBehavior = 'none';
       } else if (moveDistance < -10) {
@@ -240,8 +253,12 @@ export function DayTimeline({ onEventClick, onTimeSlotClick, onTodoClick, onAuto
 
     // マス目を跨ぐたびにバイブレーション（Google Calendarライク）
     if (lastVibrateMinute !== minute) {
+      console.log('🔔 Vibrate at minute:', minute, 'Previous:', lastVibrateMinute);
       if (navigator.vibrate) {
-        navigator.vibrate(20); // 短い軽いバイブレーション
+        const vibrated = navigator.vibrate(20); // 短い軽いバイブレーション
+        console.log('✅ Vibration triggered:', vibrated);
+      } else {
+        console.log('❌ Vibration not supported');
       }
       setLastVibrateMinute(minute);
     }
