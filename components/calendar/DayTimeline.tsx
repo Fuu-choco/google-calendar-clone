@@ -36,6 +36,7 @@ export function DayTimeline({ onEventClick, onTimeSlotClick, onTodoClick, onAuto
   const [longPressStartY, setLongPressStartY] = useState<number | null>(null);
   const [isLongPressActivated, setIsLongPressActivated] = useState(false);
   const [hasMoved, setHasMoved] = useState(false);
+  const [lastVibrateMinute, setLastVibrateMinute] = useState<number | null>(null);
 
   // 選択中または長押し有効化中はグローバルなタッチイベントを防ぐ
   useEffect(() => {
@@ -162,6 +163,7 @@ export function DayTimeline({ onEventClick, onTimeSlotClick, onTodoClick, onAuto
     setSelectionEnd(minute);
     setIsLongPressActivated(false);
     setHasMoved(false);
+    setLastVibrateMinute(null);
 
     // 1秒後に長押しを有効化
     const timer = setTimeout(() => {
@@ -208,6 +210,10 @@ export function DayTimeline({ onEventClick, onTimeSlotClick, onTodoClick, onAuto
       if (moveDistance > 20) {
         setHasMoved(true);
         setSelecting(true);
+        // 選択モードに入った時にバイブレーション
+        if (navigator.vibrate) {
+          navigator.vibrate(30);
+        }
         // body要素のoverscroll-behaviorを設定
         document.body.style.overscrollBehavior = 'none';
       } else if (moveDistance < -10) {
@@ -231,6 +237,14 @@ export function DayTimeline({ onEventClick, onTimeSlotClick, onTodoClick, onAuto
 
     const containerRect = containerRef.getBoundingClientRect();
     const minute = getMinuteFromY(touch.clientY, containerRect.top);
+
+    // マス目を跨ぐたびにバイブレーション（Google Calendarライク）
+    if (lastVibrateMinute !== minute) {
+      if (navigator.vibrate) {
+        navigator.vibrate(20); // 短い軽いバイブレーション
+      }
+      setLastVibrateMinute(minute);
+    }
 
     setSelectionEnd(minute);
   };
@@ -283,6 +297,7 @@ export function DayTimeline({ onEventClick, onTimeSlotClick, onTodoClick, onAuto
     setIsLongPressActivated(false);
     setLongPressStartY(null);
     setHasMoved(false);
+    setLastVibrateMinute(null);
   };
 
   const handleTimeSlotClick = (hour: number) => {
