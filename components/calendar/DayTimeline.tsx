@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAppStore } from '@/lib/store';
 import { format, parseISO, isSameDay, addDays, subDays, addMinutes } from 'date-fns';
 import { ja } from 'date-fns/locale';
@@ -32,6 +32,25 @@ export function DayTimeline({ onEventClick, onTimeSlotClick, onTodoClick, onAuto
   const [selecting, setSelecting] = useState(false);
   const [selectionStart, setSelectionStart] = useState<number | null>(null);
   const [selectionEnd, setSelectionEnd] = useState<number | null>(null);
+
+  // 選択中はグローバルなタッチイベントを防ぐ
+  useEffect(() => {
+    const preventScroll = (e: TouchEvent) => {
+      if (selecting) {
+        e.preventDefault();
+      }
+    };
+
+    if (selecting) {
+      document.addEventListener('touchmove', preventScroll, { passive: false });
+      document.body.style.overflow = 'hidden';
+    }
+
+    return () => {
+      document.removeEventListener('touchmove', preventScroll);
+      document.body.style.overflow = '';
+    };
+  }, [selecting]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -127,6 +146,9 @@ export function DayTimeline({ onEventClick, onTimeSlotClick, onTodoClick, onAuto
       return;
     }
 
+    // プルトゥリフレッシュを防ぐためにpreventDefaultを呼ぶ
+    e.preventDefault();
+
     const touch = e.touches[0];
     const containerRect = containerRef.getBoundingClientRect();
     const minute = getMinuteFromY(touch.clientY, containerRect.top);
@@ -134,6 +156,9 @@ export function DayTimeline({ onEventClick, onTimeSlotClick, onTodoClick, onAuto
     setSelecting(true);
     setSelectionStart(minute);
     setSelectionEnd(minute);
+
+    // body要素のoverscroll-behaviorも設定
+    document.body.style.overscrollBehavior = 'none';
   };
 
   const handleTouchMove = (e: React.TouchEvent, containerRef: HTMLElement) => {
@@ -150,6 +175,9 @@ export function DayTimeline({ onEventClick, onTimeSlotClick, onTodoClick, onAuto
   };
 
   const handleTouchEnd = () => {
+    // body要素のoverscroll-behaviorを元に戻す
+    document.body.style.overscrollBehavior = 'auto';
+
     if (!selecting || selectionStart === null || selectionEnd === null) {
       setSelecting(false);
       setSelectionStart(null);
