@@ -114,17 +114,10 @@ export function TodoList() {
             />
             <Select value={repeatType} onValueChange={(value: RepeatType) => setRepeatType(value)}>
               <SelectTrigger className="w-32">
-                <SelectValue>
-                  <div className="flex items-center gap-1">
-                    <Repeat className="h-3 w-3" />
-                    <span className="text-xs">
-                      {repeatType === 'none' && '繰り返しなし'}
-                      {repeatType === 'daily' && '毎日'}
-                      {repeatType === 'weekly' && '毎週'}
-                      {repeatType === 'monthly' && '毎月'}
-                    </span>
-                  </div>
-                </SelectValue>
+                <div className="flex items-center gap-1">
+                  <Repeat className="h-3 w-3" />
+                  <SelectValue placeholder="繰り返しなし" />
+                </div>
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="none">繰り返しなし</SelectItem>
