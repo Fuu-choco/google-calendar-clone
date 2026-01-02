@@ -32,6 +32,9 @@ export function DayTimeline({ onEventClick, onTimeSlotClick, onTodoClick, onAuto
   const [selecting, setSelecting] = useState(false);
   const [selectionStart, setSelectionStart] = useState<number | null>(null);
   const [selectionEnd, setSelectionEnd] = useState<number | null>(null);
+  const [longPressTimer, setLongPressTimer] = useState<NodeJS.Timeout | null>(null);
+  const [longPressStartY, setLongPressStartY] = useState<number | null>(null);
+  const [isLongPressActivated, setIsLongPressActivated] = useState(false);
 
   // 選択中はグローバルなタッチイベントを防ぐ
   useEffect(() => {
@@ -146,28 +149,68 @@ export function DayTimeline({ onEventClick, onTimeSlotClick, onTodoClick, onAuto
       return;
     }
 
-    // プルトゥリフレッシュを防ぐためにpreventDefaultを呼ぶ
-    e.preventDefault();
-
     const touch = e.touches[0];
     const containerRect = containerRef.getBoundingClientRect();
     const minute = getMinuteFromY(touch.clientY, containerRect.top);
 
-    setSelecting(true);
+    // 開始位置を保存
+    setLongPressStartY(touch.clientY);
     setSelectionStart(minute);
     setSelectionEnd(minute);
+    setIsLongPressActivated(false);
 
-    // body要素のoverscroll-behaviorも設定
-    document.body.style.overscrollBehavior = 'none';
+    // 2秒後に長押しを有効化
+    const timer = setTimeout(() => {
+      setIsLongPressActivated(true);
+      // バイブレーション（対応デバイスのみ）
+      if (navigator.vibrate) {
+        navigator.vibrate(50);
+      }
+    }, 2000);
+
+    setLongPressTimer(timer);
   };
 
   const handleTouchMove = (e: React.TouchEvent, containerRef: HTMLElement) => {
+    const touch = e.touches[0];
+
+    // 長押しが有効化されていない場合
+    if (!isLongPressActivated) {
+      // タイマーをキャンセル（移動した場合は長押しキャンセル）
+      if (longPressTimer && longPressStartY !== null) {
+        const moveDistance = touch.clientY - longPressStartY;
+        // 10px以上移動したらタイマーをキャンセル（通常のスクロール）
+        if (Math.abs(moveDistance) > 10) {
+          clearTimeout(longPressTimer);
+          setLongPressTimer(null);
+        }
+      }
+      return;
+    }
+
+    // 長押しが有効化されている場合
+    if (!selecting && longPressStartY !== null) {
+      const moveDistance = touch.clientY - longPressStartY;
+
+      // 下方向への移動（正の値）のみ選択モードを開始
+      if (moveDistance > 20) {
+        setSelecting(true);
+        // body要素のoverscroll-behaviorを設定
+        document.body.style.overscrollBehavior = 'none';
+      } else if (moveDistance < -10) {
+        // 上方向への移動は選択をキャンセル
+        setIsLongPressActivated(false);
+        setSelectionStart(null);
+        setSelectionEnd(null);
+        return;
+      }
+    }
+
     if (!selecting || selectionStart === null) return;
 
     // 選択中はスクロールとプルトゥリフレッシュを防ぐ
     e.preventDefault();
 
-    const touch = e.touches[0];
     const containerRect = containerRef.getBoundingClientRect();
     const minute = getMinuteFromY(touch.clientY, containerRect.top);
 
@@ -175,13 +218,22 @@ export function DayTimeline({ onEventClick, onTimeSlotClick, onTodoClick, onAuto
   };
 
   const handleTouchEnd = () => {
+    // タイマーをクリア
+    if (longPressTimer) {
+      clearTimeout(longPressTimer);
+      setLongPressTimer(null);
+    }
+
     // body要素のoverscroll-behaviorを元に戻す
     document.body.style.overscrollBehavior = 'auto';
 
     if (!selecting || selectionStart === null || selectionEnd === null) {
+      // 状態をリセット
       setSelecting(false);
       setSelectionStart(null);
       setSelectionEnd(null);
+      setIsLongPressActivated(false);
+      setLongPressStartY(null);
       return;
     }
 
@@ -201,9 +253,12 @@ export function DayTimeline({ onEventClick, onTimeSlotClick, onTodoClick, onAuto
       onTimeSlotClick(start, end);
     }
 
+    // 状態をリセット
     setSelecting(false);
     setSelectionStart(null);
     setSelectionEnd(null);
+    setIsLongPressActivated(false);
+    setLongPressStartY(null);
   };
 
   const handleTimeSlotClick = (hour: number) => {
@@ -310,6 +365,21 @@ export function DayTimeline({ onEventClick, onTimeSlotClick, onTodoClick, onAuto
                 />
               </div>
             ))}
+
+            {/* 長押し準備中のインジケーター */}
+            {isLongPressActivated && !selecting && selectionStart !== null && (
+              <div
+                className="absolute left-16 right-0 bg-green-200 dark:bg-green-900 opacity-30 pointer-events-none z-20 border-2 border-green-500 dark:border-green-400"
+                style={{
+                  top: `${selectionStart}px`,
+                  height: '60px',
+                }}
+              >
+                <div className="flex items-center justify-center h-full text-green-700 dark:text-green-300 text-xs font-bold">
+                  下にドラッグして範囲を選択
+                </div>
+              </div>
+            )}
 
             {/* 選択範囲の表示 */}
             {selecting && selectionStart !== null && selectionEnd !== null && (
