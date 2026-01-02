@@ -27,6 +27,7 @@ export function SettingsView() {
 
   const [localSettings, setLocalSettings] = useState(userSettings);
   const [localGoals, setLocalGoals] = useState(goals);
+  const [localCategories, setLocalCategories] = useState(categories);
   const [hasChanges, setHasChanges] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
   const [isTemplateModalOpen, setIsTemplateModalOpen] = useState(false);
@@ -35,7 +36,8 @@ export function SettingsView() {
   useEffect(() => {
     setLocalSettings(userSettings);
     setLocalGoals(goals);
-  }, [userSettings, goals]);
+    setLocalCategories(categories);
+  }, [userSettings, goals, categories]);
 
   const handleSettingsChange = (key: string, value: any) => {
     setLocalSettings((prev) => ({ ...prev, [key]: value }));
@@ -51,6 +53,18 @@ export function SettingsView() {
     try {
       await updateSettings(localSettings);
       await updateGoals(localGoals);
+
+      // カテゴリーの変更を保存
+      for (const category of localCategories) {
+        const original = categories.find(c => c.id === category.id);
+        if (original && (original.name !== category.name || original.color !== category.color)) {
+          await useAppStore.getState().updateCategory(category.id, {
+            name: category.name,
+            color: category.color
+          });
+        }
+      }
+
       setHasChanges(false);
       setRefreshKey((prev) => prev + 1);
       toast.success('すべての設定を保存しました');
@@ -544,7 +558,7 @@ export function SettingsView() {
             </CardHeader>
             <CardContent>
               <div className="space-y-3" key={refreshKey}>
-                {categories.map((category) => (
+                {localCategories.map((category) => (
                   <div
                     key={category.id}
                     className="flex items-center gap-3 p-3 border border-slate-200 dark:border-slate-800 rounded-lg"
@@ -552,25 +566,25 @@ export function SettingsView() {
                     <Input
                       type="color"
                       value={category.color}
-                      onChange={async (e) => {
-                        try {
-                          await useAppStore.getState().updateCategory(category.id, { color: e.target.value });
-                        } catch (error) {
-                          console.error('Error updating category color:', error);
-                          toast.error('カテゴリーの更新に失敗しました');
-                        }
+                      onChange={(e) => {
+                        setLocalCategories((prev) =>
+                          prev.map((c) =>
+                            c.id === category.id ? { ...c, color: e.target.value } : c
+                          )
+                        );
+                        setHasChanges(true);
                       }}
                       className="w-12 h-10 cursor-pointer"
                     />
                     <Input
                       value={category.name}
-                      onChange={async (e) => {
-                        try {
-                          await useAppStore.getState().updateCategory(category.id, { name: e.target.value });
-                        } catch (error) {
-                          console.error('Error updating category name:', error);
-                          toast.error('カテゴリーの更新に失敗しました');
-                        }
+                      onChange={(e) => {
+                        setLocalCategories((prev) =>
+                          prev.map((c) =>
+                            c.id === category.id ? { ...c, name: e.target.value } : c
+                          )
+                        );
+                        setHasChanges(true);
                       }}
                       className="flex-1"
                     />
@@ -631,7 +645,7 @@ export function SettingsView() {
         onClose={handleCloseTemplateModal}
         onSave={handleSaveTemplate}
         template={editingTemplate}
-        categories={categories}
+        categories={localCategories}
       />
     </div>
   );
