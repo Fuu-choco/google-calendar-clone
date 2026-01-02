@@ -200,7 +200,7 @@ export function DayTimeline({ onEventClick, onTimeSlotClick, onTodoClick, onAuto
 
   return (
     <DndContext sensors={sensors} onDragEnd={handleDragEnd} onDragStart={(e) => setDraggedEvent(e.active.id as string)}>
-      <div className="flex flex-col h-full bg-white dark:bg-slate-950">
+      <div className="flex flex-col h-full bg-white dark:bg-slate-950" style={{ overscrollBehavior: 'contain' }}>
         <div className="border-b border-slate-200 dark:border-slate-800 p-3">
           <div className="flex items-center justify-between gap-2">
             <Button variant="outline" size="sm" onClick={handlePrevDay} className="shrink-0">
@@ -246,7 +246,7 @@ export function DayTimeline({ onEventClick, onTimeSlotClick, onTodoClick, onAuto
           </div>
         </div>
 
-        <ScrollArea className="flex-1" {...handlers}>
+        <ScrollArea className="flex-1" {...(selecting ? {} : handlers)}>
           <div
             className="relative"
             style={{
