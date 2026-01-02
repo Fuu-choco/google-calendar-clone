@@ -70,19 +70,10 @@ export function SettingsView() {
       await updateSettings(localSettings);
       await updateGoals(localGoals);
 
-      // カテゴリーの変更を保存
-      for (const category of localCategories) {
-        const original = categories.find(c => c.id === category.id);
-        if (original && (original.name !== category.name || original.color !== category.color)) {
-          await useAppStore.getState().updateCategory(category.id, {
-            name: category.name,
-            color: category.color
-          });
-        }
-      }
+      // カテゴリーは即座に保存されているため、ここでは処理不要
 
       setHasChanges(false);
-      toast.success('すべての設定を保存しました');
+      toast.success('設定を保存しました');
     } catch (error) {
       console.error('Error saving settings:', error);
       toast.error('設定の保存に失敗しました');
@@ -559,11 +550,12 @@ export function SettingsView() {
 
           <Card>
             <CardHeader>
-              <div className="flex items-center justify-between">
-                <CardTitle>カテゴリー管理</CardTitle>
-                <Button
-                  size="sm"
-                  onClick={async (e) => {
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <CardTitle>カテゴリー管理</CardTitle>
+                  <Button
+                    size="sm"
+                    onClick={async (e) => {
                     console.log('🔵 カテゴリー追加ボタンがクリックされました');
                     e.preventDefault();
                     e.stopPropagation();
@@ -604,6 +596,9 @@ export function SettingsView() {
                   追加
                 </Button>
               </div>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-2">
+                名前と色の変更は自動的に保存されます
+              </p>
             </CardHeader>
             <CardContent>
               <div className="space-y-3">
@@ -615,27 +610,68 @@ export function SettingsView() {
                     <Input
                       type="color"
                       value={category.color}
-                      onChange={(e) => {
+                      onChange={async (e) => {
+                        const newColor = e.target.value;
+                        // 即座にローカル状態を更新（UIの反応を早くする）
                         setLocalCategories((prev) =>
                           prev.map((c) =>
-                            c.id === category.id ? { ...c, color: e.target.value } : c
+                            c.id === category.id ? { ...c, color: newColor } : c
                           )
                         );
-                        setHasChanges(true);
+
+                        // データベースにも即座に保存
+                        try {
+                          await useAppStore.getState().updateCategory(category.id, {
+                            color: newColor
+                          });
+                          console.log('✅ カテゴリー色を保存:', category.name, newColor);
+                        } catch (error) {
+                          console.error('❌ カテゴリー色の保存に失敗:', error);
+                          toast.error('色の変更を保存できませんでした');
+                        }
                       }}
                       className="w-16 h-12 cursor-pointer"
                     />
                     <Input
                       value={category.name}
                       onChange={(e) => {
+                        // 入力中はローカル状態のみ更新
                         setLocalCategories((prev) =>
                           prev.map((c) =>
                             c.id === category.id ? { ...c, name: e.target.value } : c
                           )
                         );
-                        setHasChanges(true);
+                      }}
+                      onBlur={async (e) => {
+                        const newName = e.target.value.trim();
+                        if (!newName) {
+                          toast.error('カテゴリー名を入力してください');
+                          // 元の名前に戻す
+                          const original = categories.find(c => c.id === category.id);
+                          if (original) {
+                            setLocalCategories((prev) =>
+                              prev.map((c) =>
+                                c.id === category.id ? { ...c, name: original.name } : c
+                              )
+                            );
+                          }
+                          return;
+                        }
+
+                        // データベースに保存
+                        try {
+                          await useAppStore.getState().updateCategory(category.id, {
+                            name: newName
+                          });
+                          console.log('✅ カテゴリー名を保存:', category.id, newName);
+                          toast.success('カテゴリー名を保存しました');
+                        } catch (error) {
+                          console.error('❌ カテゴリー名の保存に失敗:', error);
+                          toast.error('名前の変更を保存できませんでした');
+                        }
                       }}
                       className="flex-1 h-12 text-base"
+                      placeholder="カテゴリー名"
                     />
                     {!category.isDefault && (
                       <Button
