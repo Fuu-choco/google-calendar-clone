@@ -139,6 +139,9 @@ export function DayTimeline({ onEventClick, onTimeSlotClick, onTodoClick, onAuto
   const handleTouchMove = (e: React.TouchEvent, containerRef: HTMLElement) => {
     if (!selecting || selectionStart === null) return;
 
+    // 選択中はスクロールとプルトゥリフレッシュを防ぐ
+    e.preventDefault();
+
     const touch = e.touches[0];
     const containerRect = containerRef.getBoundingClientRect();
     const minute = getMinuteFromY(touch.clientY, containerRect.top);
@@ -246,7 +249,10 @@ export function DayTimeline({ onEventClick, onTimeSlotClick, onTodoClick, onAuto
         <ScrollArea className="flex-1" {...handlers}>
           <div
             className="relative"
-            style={{ height: '1440px' }}
+            style={{
+              height: '1440px',
+              touchAction: selecting ? 'none' : 'auto'
+            }}
             onTouchMove={(e) => {
               const container = e.currentTarget;
               handleTouchMove(e, container);
