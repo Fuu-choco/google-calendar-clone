@@ -37,24 +37,26 @@ export function DayTimeline({ onEventClick, onTimeSlotClick, onTodoClick, onAuto
   const [isLongPressActivated, setIsLongPressActivated] = useState(false);
   const [hasMoved, setHasMoved] = useState(false);
 
-  // 選択中はグローバルなタッチイベントを防ぐ
+  // 選択中または長押し有効化中はグローバルなタッチイベントを防ぐ
   useEffect(() => {
     const preventScroll = (e: TouchEvent) => {
-      if (selecting) {
+      if (selecting || isLongPressActivated) {
         e.preventDefault();
       }
     };
 
-    if (selecting) {
+    if (selecting || isLongPressActivated) {
       document.addEventListener('touchmove', preventScroll, { passive: false });
       document.body.style.overflow = 'hidden';
+      document.body.style.overscrollBehavior = 'none';
     }
 
     return () => {
       document.removeEventListener('touchmove', preventScroll);
       document.body.style.overflow = '';
+      document.body.style.overscrollBehavior = 'auto';
     };
-  }, [selecting]);
+  }, [selecting, isLongPressActivated]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -161,14 +163,14 @@ export function DayTimeline({ onEventClick, onTimeSlotClick, onTodoClick, onAuto
     setIsLongPressActivated(false);
     setHasMoved(false);
 
-    // 2秒後に長押しを有効化
+    // 1秒後に長押しを有効化
     const timer = setTimeout(() => {
       setIsLongPressActivated(true);
       // バイブレーション（対応デバイスのみ）
       if (navigator.vibrate) {
         navigator.vibrate(50);
       }
-    }, 2000);
+    }, 1000);
 
     setLongPressTimer(timer);
   };
@@ -197,6 +199,9 @@ export function DayTimeline({ onEventClick, onTimeSlotClick, onTodoClick, onAuto
 
     // 長押しが有効化されている場合
     if (!selecting && longPressStartY !== null) {
+      // 長押し有効化中は常にpreventDefaultを呼んでリロードを防ぐ
+      e.preventDefault();
+
       const moveDistance = touch.clientY - longPressStartY;
 
       // 下方向への移動（正の値）のみ選択モードを開始
@@ -205,7 +210,6 @@ export function DayTimeline({ onEventClick, onTimeSlotClick, onTodoClick, onAuto
         setSelecting(true);
         // body要素のoverscroll-behaviorを設定
         document.body.style.overscrollBehavior = 'none';
-        e.preventDefault(); // ここでpreventDefault
       } else if (moveDistance < -10) {
         // 上方向への移動は選択をキャンセル
         setHasMoved(true);
@@ -215,7 +219,7 @@ export function DayTimeline({ onEventClick, onTimeSlotClick, onTodoClick, onAuto
         setLongPressStartY(null);
         return;
       } else {
-        // まだ閾値に達していない場合は何もしない
+        // まだ閾値に達していない場合でもpreventDefaultは呼ばれている
         return;
       }
     }
@@ -349,12 +353,12 @@ export function DayTimeline({ onEventClick, onTimeSlotClick, onTodoClick, onAuto
           </div>
         </div>
 
-        <ScrollArea className="flex-1" {...(selecting ? {} : handlers)}>
+        <ScrollArea className="flex-1" {...((selecting || isLongPressActivated) ? {} : handlers)}>
           <div
             className="relative"
             style={{
               height: '1440px',
-              touchAction: selecting ? 'none' : 'auto'
+              touchAction: (selecting || isLongPressActivated) ? 'none' : 'auto'
             }}
             onTouchMove={(e) => {
               const container = e.currentTarget;
