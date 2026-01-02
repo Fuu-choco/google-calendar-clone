@@ -121,6 +121,12 @@ export function DayTimeline({ onEventClick, onTimeSlotClick, onTodoClick, onAuto
   };
 
   const handleTouchStart = (e: React.TouchEvent, containerRef: HTMLElement) => {
+    // イベントカードやボタンなど、他の要素をタップした場合は無視
+    const target = e.target as HTMLElement;
+    if (target.closest('[data-event-card]') || target.closest('button')) {
+      return;
+    }
+
     const touch = e.touches[0];
     const containerRect = containerRef.getBoundingClientRect();
     const minute = getMinuteFromY(touch.clientY, containerRect.top);
@@ -241,10 +247,6 @@ export function DayTimeline({ onEventClick, onTimeSlotClick, onTodoClick, onAuto
           <div
             className="relative"
             style={{ height: '1440px' }}
-            onTouchStart={(e) => {
-              const container = e.currentTarget;
-              handleTouchStart(e, container);
-            }}
             onTouchMove={(e) => {
               const container = e.currentTarget;
               handleTouchMove(e, container);
@@ -263,8 +265,14 @@ export function DayTimeline({ onEventClick, onTimeSlotClick, onTodoClick, onAuto
                   </span>
                 </div>
                 <div
-                  className="ml-16 h-full cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-900/50 transition-colors relative z-0"
+                  className="ml-16 h-full cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-900/50 transition-colors relative z-0 select-none"
                   onClick={() => handleTimeSlotClick(hour)}
+                  onTouchStart={(e) => {
+                    const container = e.currentTarget.closest('[style*="1440px"]') as HTMLElement;
+                    if (container) {
+                      handleTouchStart(e, container);
+                    }
+                  }}
                 />
               </div>
             ))}
@@ -321,6 +329,7 @@ function DraggableTaskCard({ event, position, isDragging, onClick }: any) {
       ref={setNodeRef}
       className="absolute pointer-events-auto"
       style={style}
+      data-event-card
       {...listeners}
       {...attributes}
     >
