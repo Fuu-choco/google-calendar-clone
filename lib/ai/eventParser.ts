@@ -122,6 +122,28 @@ export async function parseEventFromText(input: string): Promise<ParsedEvent | n
 }
 
 /**
+ * ローカル時間をISO文字列に変換（UTCオフセット付き）
+ * JavaScriptのnew Date()が正しく解釈できるようにする
+ */
+function toLocalISOString(date: Date): string {
+  // タイムゾーンオフセットを計算（分単位）
+  const offset = -date.getTimezoneOffset();
+  const offsetHours = Math.floor(Math.abs(offset) / 60);
+  const offsetMinutes = Math.abs(offset) % 60;
+  const offsetSign = offset >= 0 ? '+' : '-';
+
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  const hours = String(date.getHours()).padStart(2, '0');
+  const minutes = String(date.getMinutes()).padStart(2, '0');
+  const seconds = String(date.getSeconds()).padStart(2, '0');
+
+  // ISO 8601形式: 2026-01-04T14:00:00+09:00
+  return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}${offsetSign}${String(offsetHours).padStart(2, '0')}:${String(offsetMinutes).padStart(2, '0')}`;
+}
+
+/**
  * フォールバック: シンプルな正規表現ベースの解析
  * AI APIが使用できない場合に使用
  */
@@ -197,8 +219,8 @@ function parseEventFallback(input: string): ParsedEvent | null {
 
   return {
     title,
-    start: startDate.toISOString(),
-    end: endDate.toISOString(),
+    start: toLocalISOString(startDate),
+    end: toLocalISOString(endDate),
     category,
     priority: 'medium',
   };
