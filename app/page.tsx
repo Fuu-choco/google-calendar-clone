@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useAppStore } from '@/lib/store';
+import { CalendarEvent } from '@/lib/types';
 import { Header } from '@/components/common/Header';
 import { Sidebar } from '@/components/common/Sidebar';
 import { CalendarView } from '@/components/calendar/CalendarView';
@@ -21,7 +22,7 @@ export default function Home() {
   const { currentTab, fetchData, isLoading, events, addNotification, currentDate } = useAppStore();
   const [showAddEvent, setShowAddEvent] = useState(false);
   const [showMobileSidebar, setShowMobileSidebar] = useState(false);
-  const [selectedEvent, setSelectedEvent] = useState<any>(null);
+  const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
   const scheduledNotifications = useRef<Map<string, number[]>>(new Map());
 
   // IndexedDBからデータを取得（初回マウント時のみ）
@@ -57,7 +58,7 @@ export default function Home() {
     };
   }, [events, addNotification]);
 
-  const handleEventClick = (event: any) => {
+  const handleEventClick = (event: CalendarEvent) => {
     setSelectedEvent(event);
     setShowAddEvent(true);
   };

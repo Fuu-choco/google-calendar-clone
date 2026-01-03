@@ -14,7 +14,7 @@ import { useSwipeable } from 'react-swipeable';
 import { DndContext, DragEndEvent, PointerSensor, useSensor, useSensors, useDraggable } from '@dnd-kit/core';
 
 interface DayTimelineProps {
-  onEventClick?: (event: any) => void;
+  onEventClick?: (event: CalendarEvent) => void;
   onTimeSlotClick?: (start: Date, end: Date) => void;
   onTodoClick?: () => void;
   onAutoGenerate?: () => void;
@@ -160,7 +160,7 @@ export function DayTimeline({ onEventClick, onTimeSlotClick, onTodoClick, onAuto
     trackMouse: true,
   });
 
-  const getEventPosition = useCallback((event: any) => {
+  const getEventPosition = useCallback((event: CalendarEvent) => {
     const start = parseISO(event.start);
     const hour = start.getHours();
     const minute = start.getMinutes();

@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useAppStore } from '@/lib/store';
+import { CalendarEvent } from '@/lib/types';
 import { MonthCalendar } from './MonthCalendar';
 import { DayTimeline } from './DayTimeline';
 import { TaskEditModal } from './TaskEditModal';
@@ -13,7 +14,7 @@ import { generateDaySchedule } from '@/lib/scheduleGenerator';
 import { useToast } from '@/hooks/use-toast';
 
 interface CalendarViewProps {
-  onEventClick?: (event: any) => void;
+  onEventClick?: (event: CalendarEvent) => void;
 }
 
 export function CalendarView({ onEventClick }: CalendarViewProps) {
@@ -35,7 +36,7 @@ export function CalendarView({ onEventClick }: CalendarViewProps) {
 
   const displayDate = selectedDate || currentDate;
 
-  const handleEventClick = (event: any) => {
+  const handleEventClick = (event: CalendarEvent) => {
     if (onEventClick) {
       onEventClick(event);
     }
