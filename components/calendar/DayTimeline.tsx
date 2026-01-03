@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useAppStore } from '@/lib/store';
+import { CalendarEvent } from '@/lib/types';
 import { format, parseISO, isSameDay, addDays, subDays, addMinutes } from 'date-fns';
 import { ja } from 'date-fns/locale';
 import { ChevronLeft, ChevronRight, Sparkles, List } from 'lucide-react';
@@ -90,34 +91,39 @@ export function DayTimeline({ onEventClick, onTimeSlotClick, onTodoClick, onAuto
   );
 
   const displayDate = selectedDate || currentDate;
-  const dayEvents = events.filter((event) => {
-    const eventDate = parseISO(event.start);
-    return isSameDay(eventDate, displayDate);
-  });
+
+  // dayEventsをメモ化してパフォーマンスを改善
+  const dayEvents = useMemo(() => {
+    return events.filter((event) => {
+      const eventDate = parseISO(event.start);
+      return isSameDay(eventDate, displayDate);
+    });
+  }, [events, displayDate]);
 
   const hours = Array.from({ length: 24 }, (_, i) => i);
 
-  const handlePrevDay = () => {
+  // イベントハンドラをメモ化してパフォーマンスを改善
+  const handlePrevDay = useCallback(() => {
     setSelectedDate(subDays(displayDate, 1));
-  };
+  }, [displayDate, setSelectedDate]);
 
-  const handleNextDay = () => {
+  const handleNextDay = useCallback(() => {
     setSelectedDate(addDays(displayDate, 1));
-  };
+  }, [displayDate, setSelectedDate]);
 
-  const handleToday = () => {
+  const handleToday = useCallback(() => {
     setSelectedDate(new Date());
-  };
+  }, [setSelectedDate]);
 
-  const handleAutoGenerate = () => {
+  const handleAutoGenerate = useCallback(() => {
     if (onAutoGenerate) {
       onAutoGenerate();
     } else {
       toast.info('AI自動生成機能は準備中です');
     }
-  };
+  }, [onAutoGenerate]);
 
-  const handleDragEnd = (event: DragEndEvent) => {
+  const handleDragEnd = useCallback((event: DragEndEvent) => {
     const { active, delta } = event;
     const eventId = active.id as string;
     const targetEvent = events.find(e => e.id === eventId);
@@ -146,7 +152,7 @@ export function DayTimeline({ onEventClick, onTimeSlotClick, onTodoClick, onAuto
 
     toast.success('タスクの時間を更新しました');
     setDraggedEvent(null);
-  };
+  }, [events, updateEvent]);
 
   const handlers = useSwipeable({
     onSwipedLeft: handleNextDay,
@@ -154,21 +160,21 @@ export function DayTimeline({ onEventClick, onTimeSlotClick, onTodoClick, onAuto
     trackMouse: true,
   });
 
-  const getEventPosition = (event: any) => {
+  const getEventPosition = useCallback((event: any) => {
     const start = parseISO(event.start);
     const hour = start.getHours();
     const minute = start.getMinutes();
     const top = (hour * 60 + minute) * 1;
     return top;
-  };
+  }, []);
 
-  const getMinuteFromY = (y: number, containerTop: number) => {
+  const getMinuteFromY = useCallback((y: number, containerTop: number) => {
     const relativeY = y - containerTop;
     const minutePerPixel = 24 * 60 / 1440; // 1440pxで24時間
     return Math.floor(relativeY * minutePerPixel / 15) * 15; // 15分単位で丸める
-  };
+  }, []);
 
-  const handleTouchStart = (e: React.TouchEvent, containerRef: HTMLElement) => {
+  const handleTouchStart = useCallback((e: React.TouchEvent, containerRef: HTMLElement) => {
     // イベントカードやボタンなど、他の要素をタップした場合は無視
     const target = e.target as HTMLElement;
     if (target.closest('[data-event-card]') || target.closest('button')) {
@@ -197,9 +203,9 @@ export function DayTimeline({ onEventClick, onTimeSlotClick, onTodoClick, onAuto
     }, 1000);
 
     setLongPressTimer(timer);
-  };
+  }, [getMinuteFromY, safeVibrate]);
 
-  const handleTouchMove = (e: React.TouchEvent, containerRef: HTMLElement) => {
+  const handleTouchMove = useCallback((e: React.TouchEvent, containerRef: HTMLElement) => {
     const touch = e.touches[0];
 
     // 長押しが有効化されていない場合
@@ -274,9 +280,9 @@ export function DayTimeline({ onEventClick, onTimeSlotClick, onTodoClick, onAuto
     }
 
     setSelectionEnd(minute);
-  };
+  }, [isLongPressActivated, longPressTimer, longPressStartY, selecting, selectionStart, lastVibrateMinute, safeVibrate, getMinuteFromY]);
 
-  const handleTouchEnd = () => {
+  const handleTouchEnd = useCallback(() => {
     // タイマーをクリア
     if (longPressTimer) {
       clearTimeout(longPressTimer);
@@ -325,9 +331,9 @@ export function DayTimeline({ onEventClick, onTimeSlotClick, onTodoClick, onAuto
     setLongPressStartY(null);
     setHasMoved(false);
     setLastVibrateMinute(null);
-  };
+  }, [longPressTimer, selecting, selectionStart, selectionEnd, displayDate, onTimeSlotClick, hasMoved, longPressStartY]);
 
-  const handleTimeSlotClick = (hour: number) => {
+  const handleTimeSlotClick = useCallback((hour: number) => {
     // 選択中でない場合のみ通常のクリック処理
     if (selecting) return;
 
@@ -345,7 +351,7 @@ export function DayTimeline({ onEventClick, onTimeSlotClick, onTodoClick, onAuto
 
     console.log('✅ Calling onTimeSlotClick with:', { start, end });
     onTimeSlotClick(start, end);
-  };
+  }, [selecting, displayDate, onTimeSlotClick]);
 
   return (
     <DndContext sensors={sensors} onDragEnd={handleDragEnd} onDragStart={(e) => setDraggedEvent(e.active.id as string)}>

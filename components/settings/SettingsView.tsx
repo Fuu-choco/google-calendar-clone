@@ -556,41 +556,41 @@ export function SettingsView() {
                   <Button
                     size="sm"
                     onClick={async (e) => {
-                    console.log('🔵 カテゴリー追加ボタンがクリックされました');
-                    e.preventDefault();
-                    e.stopPropagation();
+                      console.log('🔵 カテゴリー追加ボタンがクリックされました');
+                      e.preventDefault();
+                      e.stopPropagation();
 
-                    const newCategory = {
-                      name: '新しいカテゴリー',
-                      color: '#8B5CF6',
-                      isDefault: false,
-                    };
-                    console.log('📝 新規カテゴリー:', newCategory);
+                      const newCategory = {
+                        name: '新しいカテゴリー',
+                        color: '#8B5CF6',
+                        isDefault: false,
+                      };
+                      console.log('📝 新規カテゴリー:', newCategory);
 
-                    try {
-                      console.log('⏳ ストアのaddCategoryを呼び出し中...');
-                      // ストアに追加（IDが自動生成される）
-                      await useAppStore.getState().addCategory(newCategory);
-                      console.log('✅ addCategory完了');
+                      try {
+                        console.log('⏳ ストアのaddCategoryを呼び出し中...');
+                        // ストアに追加（IDが自動生成される）
+                        await useAppStore.getState().addCategory(newCategory);
+                        console.log('✅ addCategory完了');
 
-                      toast.success('カテゴリーを追加しました');
+                        toast.success('カテゴリーを追加しました');
 
-                      // ストアから最新のcategoriesを取得してlocalCategoriesも更新
-                      const updatedCategories = useAppStore.getState().categories;
-                      console.log('📊 更新後のカテゴリー数:', updatedCategories.length);
-                      console.log('📊 カテゴリーリスト:', updatedCategories);
+                        // ストアから最新のcategoriesを取得してlocalCategoriesも更新
+                        const updatedCategories = useAppStore.getState().categories;
+                        console.log('📊 更新後のカテゴリー数:', updatedCategories.length);
+                        console.log('📊 カテゴリーリスト:', updatedCategories);
 
-                      setLocalCategories(updatedCategories);
-                      console.log('✅ localCategories更新完了');
-                    } catch (error) {
-                      console.error('❌ カテゴリー追加エラー:', error);
-                      if (error instanceof Error) {
-                        console.error('エラーメッセージ:', error.message);
-                        console.error('エラースタック:', error.stack);
+                        setLocalCategories(updatedCategories);
+                        console.log('✅ localCategories更新完了');
+                      } catch (error) {
+                        console.error('❌ カテゴリー追加エラー:', error);
+                        if (error instanceof Error) {
+                          console.error('エラーメッセージ:', error.message);
+                          console.error('エラースタック:', error.stack);
+                        }
+                        toast.error('カテゴリーの追加に失敗しました');
                       }
-                      toast.error('カテゴリーの追加に失敗しました');
-                    }
-                  }}
+                    }}
                 >
                   <Plus className="h-4 w-4 mr-1" />
                   追加
