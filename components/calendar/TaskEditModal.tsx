@@ -117,15 +117,17 @@ export function TaskEditModal({
   const handleTemplateSelect = (templateId: string) => {
     const template = templates.find((t) => t.id === templateId);
     if (template) {
-      const [hours, minutes] = formData.startTime.split(':').map(Number);
-      const endDate = new Date();
-      endDate.setHours(hours, minutes + template.duration);
-      setFormData({
-        ...formData,
-        title: template.name,
-        endTime: format(endDate, 'HH:mm'),
-        category: template.category,
-        priority: template.priority,
+      setFormData((prev) => {
+        const [hours, minutes] = prev.startTime.split(':').map(Number);
+        const endDate = new Date();
+        endDate.setHours(hours, minutes + template.duration);
+        return {
+          ...prev,
+          title: template.name,
+          endTime: format(endDate, 'HH:mm'),
+          category: template.category,
+          priority: template.priority,
+        };
       });
     }
   };
@@ -137,14 +139,14 @@ export function TaskEditModal({
     // AIで指定された日付を保存
     setAiDate(startDate);
 
-    setFormData({
-      ...formData,
+    setFormData((prev) => ({
+      ...prev,
       title: parsedEvent.title,
       startTime: format(startDate, 'HH:mm'),
       endTime: format(endDate, 'HH:mm'),
       category: parsedEvent.category || 'その他',
       priority: parsedEvent.priority || 'medium',
-    });
+    }));
   };
 
   const handleSave = async () => {
