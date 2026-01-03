@@ -256,7 +256,7 @@ export function TaskEditModal({
             <Label>タスク名</Label>
             <Input
               value={formData.title}
-              onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+              onChange={(e) => setFormData((prev) => ({ ...prev, title: e.target.value }))}
               placeholder="タスク名を入力"
             />
           </div>
@@ -267,7 +267,7 @@ export function TaskEditModal({
               <Input
                 type="time"
                 value={formData.startTime}
-                onChange={(e) => setFormData({ ...formData, startTime: e.target.value })}
+                onChange={(e) => setFormData((prev) => ({ ...prev, startTime: e.target.value }))}
               />
             </div>
             <div className="space-y-2">
@@ -275,7 +275,7 @@ export function TaskEditModal({
               <Input
                 type="time"
                 value={formData.endTime}
-                onChange={(e) => setFormData({ ...formData, endTime: e.target.value })}
+                onChange={(e) => setFormData((prev) => ({ ...prev, endTime: e.target.value }))}
               />
             </div>
           </div>
@@ -285,7 +285,7 @@ export function TaskEditModal({
             <Select
               value={formData.category}
               onValueChange={(value: string) =>
-                setFormData({ ...formData, category: value })
+                setFormData((prev) => ({ ...prev, category: value }))
               }
             >
               <SelectTrigger>
@@ -308,7 +308,7 @@ export function TaskEditModal({
             <Select
               value={formData.priority}
               onValueChange={(value: Priority) =>
-                setFormData({ ...formData, priority: value })
+                setFormData((prev) => ({ ...prev, priority: value }))
               }
             >
               <SelectTrigger>
@@ -326,7 +326,7 @@ export function TaskEditModal({
             <Switch
               checked={formData.isFixed}
               onCheckedChange={(checked) =>
-                setFormData({ ...formData, isFixed: checked })
+                setFormData((prev) => ({ ...prev, isFixed: checked }))
               }
             />
             <Label>時間変更不可（マストタスク）</Label>
@@ -336,7 +336,7 @@ export function TaskEditModal({
             <Switch
               checked={formData.showInMonthView}
               onCheckedChange={(checked) =>
-                setFormData({ ...formData, showInMonthView: checked })
+                setFormData((prev) => ({ ...prev, showInMonthView: checked }))
               }
             />
             <Label>月カレンダーに表示</Label>
@@ -347,7 +347,7 @@ export function TaskEditModal({
               <Switch
                 checked={formData.notificationEnabled}
                 onCheckedChange={(checked) =>
-                  setFormData({ ...formData, notificationEnabled: checked })
+                  setFormData((prev) => ({ ...prev, notificationEnabled: checked }))
                 }
               />
               <Label>通知を有効化</Label>
@@ -359,7 +359,7 @@ export function TaskEditModal({
                   <Checkbox
                     checked={formData.notification5}
                     onCheckedChange={(checked) =>
-                      setFormData({ ...formData, notification5: !!checked })
+                      setFormData((prev) => ({ ...prev, notification5: !!checked }))
                     }
                   />
                   <Label className="text-sm">5分前</Label>
@@ -368,7 +368,7 @@ export function TaskEditModal({
                   <Checkbox
                     checked={formData.notification10}
                     onCheckedChange={(checked) =>
-                      setFormData({ ...formData, notification10: !!checked })
+                      setFormData((prev) => ({ ...prev, notification10: !!checked }))
                     }
                   />
                   <Label className="text-sm">10分前</Label>
@@ -377,7 +377,7 @@ export function TaskEditModal({
                   <Checkbox
                     checked={formData.notification15}
                     onCheckedChange={(checked) =>
-                      setFormData({ ...formData, notification15: !!checked })
+                      setFormData((prev) => ({ ...prev, notification15: !!checked }))
                     }
                   />
                   <Label className="text-sm">15分前</Label>
@@ -391,7 +391,7 @@ export function TaskEditModal({
             <RadioGroup
               value={formData.repeat}
               onValueChange={(value: RepeatType) =>
-                setFormData({ ...formData, repeat: value })
+                setFormData((prev) => ({ ...prev, repeat: value }))
               }
             >
               <div className="flex items-center space-x-2">

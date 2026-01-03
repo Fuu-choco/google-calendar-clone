@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useAppStore } from '@/lib/store';
 import { CalendarEvent } from '@/lib/types';
 import { Header } from '@/components/common/Header';
@@ -41,22 +41,24 @@ export default function Home() {
     registerServiceWorker();
   }, []);
 
+  // 通知コールバック（安定した参照を保つ）
+  const handleAddNotification = useCallback((notification: any) => {
+    addNotification(notification);
+  }, [addNotification]);
+
   // イベントが変更されたら通知を再スケジュール
   useEffect(() => {
     // 既存の通知をキャンセル
     cancelAllNotifications(scheduledNotifications.current);
 
-    // 新しい通知をスケジュール（コールバックでストアに追加）
-    scheduledNotifications.current = scheduleAllNotifications(events, (notification) => {
-      // Web通知が送信された時にアプリ内通知も追加
-      addNotification(notification);
-    });
+    // 新しい通知をスケジュール
+    scheduledNotifications.current = scheduleAllNotifications(events, handleAddNotification);
 
     // クリーンアップ
     return () => {
       cancelAllNotifications(scheduledNotifications.current);
     };
-  }, [events, addNotification]);
+  }, [events, handleAddNotification]);
 
   const handleEventClick = (event: CalendarEvent) => {
     setSelectedEvent(event);

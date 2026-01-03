@@ -75,9 +75,10 @@ export function DayTimeline({ onEventClick, onTimeSlotClick, onTodoClick, onAuto
 
   // タイマーのクリーンアップ（メモリリーク防止）
   useEffect(() => {
+    const timer = longPressTimer;
     return () => {
-      if (longPressTimer) {
-        clearTimeout(longPressTimer);
+      if (timer) {
+        clearTimeout(timer);
       }
     };
   }, [longPressTimer]);

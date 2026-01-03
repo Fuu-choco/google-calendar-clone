@@ -98,7 +98,9 @@ export function generateRepeatTodos(
       // この日付のTodoが既に存在するかチェック
       const existingTodo = todos.find(
         (t) =>
-          (t.id === repeatTodo.id || t.parentTodoId === repeatTodo.id || t.parentTodoId === repeatTodo.parentTodoId) &&
+          (t.id === repeatTodo.id ||
+           (t.parentTodoId && (t.parentTodoId === repeatTodo.id ||
+                               (repeatTodo.parentTodoId && t.parentTodoId === repeatTodo.parentTodoId)))) &&
           isSameDay(parseISO(t.dueDate), currentCheckDate)
       );
 

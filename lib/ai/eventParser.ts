@@ -128,47 +128,78 @@ export async function parseEventFromText(input: string): Promise<ParsedEvent | n
 function parseEventFallback(input: string): ParsedEvent | null {
   console.log('📝 フォールバック解析を使用:', input);
 
-  // 基本的なパターンマッチング
-  const title = input.replace(/(\d{1,2}(時|:)\d{0,2}|午前|午後|今日|明日|明後日|から|まで|に)/g, '').trim();
-
-  if (!title) {
-    return null;
-  }
-
-  // デフォルトの開始時刻（現在時刻の1時間後）
   const now = new Date();
   let startDate = new Date(now.getTime() + 60 * 60 * 1000);
+  let durationMinutes = 60; // デフォルト: 1時間
 
-  // 「明日」「明後日」のパターン
+  // 日付パターンの解析
   if (input.includes('明日')) {
     startDate = addDays(startOfDay(now), 1);
     startDate.setHours(9, 0, 0, 0); // デフォルト: 午前9時
   } else if (input.includes('明後日')) {
     startDate = addDays(startOfDay(now), 2);
     startDate.setHours(9, 0, 0, 0);
+  } else if (input.includes('今日')) {
+    startDate = startOfDay(now);
+    startDate.setHours(now.getHours() + 1, 0, 0, 0);
   }
 
-  // 「午後3時」のようなパターン
-  const timeMatch = input.match(/(\d{1,2})(時|:)(\d{0,2})/);
+  // 時刻パターンの解析（「14時」「10時30分」など）
+  const timeMatch = input.match(/(\d{1,2})(時|:)(\d{0,2})?(分)?/);
   if (timeMatch) {
     let hour = parseInt(timeMatch[1], 10);
     const minute = timeMatch[3] ? parseInt(timeMatch[3], 10) : 0;
 
+    // 午後判定
     if (input.includes('午後') && hour < 12) {
       hour += 12;
+    } else if (input.includes('午前') && hour === 12) {
+      hour = 0;
     }
 
     startDate.setHours(hour, minute, 0, 0);
   }
 
-  // 終了時刻（開始時刻の1時間後）
-  const endDate = new Date(startDate.getTime() + 60 * 60 * 1000);
+  // 時間の長さ指定（「2時間」「1時間半」など）
+  const durationMatch = input.match(/(\d+\.?\d*)時間(半)?/);
+  if (durationMatch) {
+    let hours = parseFloat(durationMatch[1]);
+    if (durationMatch[2]) { // 「半」がある場合
+      hours += 0.5;
+    }
+    durationMinutes = hours * 60;
+  }
+
+  // 終了時刻を計算
+  const endDate = new Date(startDate.getTime() + durationMinutes * 60 * 1000);
+
+  // タイトル抽出（不要な単語を削除）
+  let title = input
+    .replace(/今日の?|明日の?|明後日の?/g, '')
+    .replace(/午前|午後/g, '')
+    .replace(/\d{1,2}(時|:)\d{0,2}分?/g, '')
+    .replace(/から|まで|に/g, '')
+    .replace(/\d+\.?\d*時間半?/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  if (!title) {
+    title = '新しいタスク';
+  }
+
+  // カテゴリー推測
+  let category = 'その他';
+  if (/(勉強|学習|授業|講義|テスト|試験|レポート)/g.test(input)) {
+    category = '学習';
+  } else if (/(会議|仕事|業務|打ち合わせ|ミーティング|勤務|作業)/g.test(input)) {
+    category = '勤務';
+  }
 
   return {
     title,
     start: startDate.toISOString(),
     end: endDate.toISOString(),
-    category: 'その他',
+    category,
     priority: 'medium',
   };
 }
