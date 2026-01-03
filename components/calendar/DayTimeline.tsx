@@ -40,7 +40,7 @@ export function DayTimeline({ onEventClick, onTimeSlotClick, onTodoClick, onAuto
   const [lastVibrateMinute, setLastVibrateMinute] = useState<number | null>(null);
 
   // 型安全なバイブレーション関数
-  const safeVibrate = (duration: number): boolean => {
+  const safeVibrate = useCallback((duration: number): boolean => {
     if ('vibrate' in navigator && typeof navigator.vibrate === 'function') {
       try {
         return navigator.vibrate(duration);
@@ -50,7 +50,7 @@ export function DayTimeline({ onEventClick, onTimeSlotClick, onTodoClick, onAuto
       }
     }
     return false;
-  };
+  }, []);
 
   // 選択中または長押し有効化中はグローバルなタッチイベントを防ぐ
   useEffect(() => {
@@ -105,15 +105,15 @@ export function DayTimeline({ onEventClick, onTimeSlotClick, onTodoClick, onAuto
   // イベントハンドラをメモ化してパフォーマンスを改善
   const handlePrevDay = useCallback(() => {
     setSelectedDate(subDays(displayDate, 1));
-  }, [displayDate, setSelectedDate]);
+  }, [displayDate]);
 
   const handleNextDay = useCallback(() => {
     setSelectedDate(addDays(displayDate, 1));
-  }, [displayDate, setSelectedDate]);
+  }, [displayDate]);
 
   const handleToday = useCallback(() => {
     setSelectedDate(new Date());
-  }, [setSelectedDate]);
+  }, []);
 
   const handleAutoGenerate = useCallback(() => {
     if (onAutoGenerate) {
@@ -152,7 +152,7 @@ export function DayTimeline({ onEventClick, onTimeSlotClick, onTodoClick, onAuto
 
     toast.success('タスクの時間を更新しました');
     setDraggedEvent(null);
-  }, [events, updateEvent]);
+  }, [events]);
 
   const handlers = useSwipeable({
     onSwipedLeft: handleNextDay,
