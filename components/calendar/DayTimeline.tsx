@@ -38,6 +38,19 @@ export function DayTimeline({ onEventClick, onTimeSlotClick, onTodoClick, onAuto
   const [hasMoved, setHasMoved] = useState(false);
   const [lastVibrateMinute, setLastVibrateMinute] = useState<number | null>(null);
 
+  // 型安全なバイブレーション関数
+  const safeVibrate = (duration: number): boolean => {
+    if ('vibrate' in navigator && typeof navigator.vibrate === 'function') {
+      try {
+        return navigator.vibrate(duration);
+      } catch (error) {
+        console.error('Vibration failed:', error);
+        return false;
+      }
+    }
+    return false;
+  };
+
   // 選択中または長押し有効化中はグローバルなタッチイベントを防ぐ
   useEffect(() => {
     const preventScroll = (e: TouchEvent) => {
@@ -58,6 +71,15 @@ export function DayTimeline({ onEventClick, onTimeSlotClick, onTodoClick, onAuto
       document.body.style.overscrollBehavior = 'auto';
     };
   }, [selecting, isLongPressActivated]);
+
+  // タイマーのクリーンアップ（メモリリーク防止）
+  useEffect(() => {
+    return () => {
+      if (longPressTimer) {
+        clearTimeout(longPressTimer);
+      }
+    };
+  }, [longPressTimer]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -170,12 +192,8 @@ export function DayTimeline({ onEventClick, onTimeSlotClick, onTodoClick, onAuto
       console.log('⏱️ Long press activated!');
       setIsLongPressActivated(true);
       // バイブレーション（対応デバイスのみ）
-      if (navigator.vibrate) {
-        const vibrated = navigator.vibrate(50);
-        console.log('✅ Long press vibration triggered:', vibrated);
-      } else {
-        console.log('❌ Vibration not supported');
-      }
+      const vibrated = safeVibrate(50);
+      console.log(vibrated ? '✅ Long press vibration triggered' : '❌ Vibration not supported');
     }, 1000);
 
     setLongPressTimer(timer);
@@ -216,12 +234,8 @@ export function DayTimeline({ onEventClick, onTimeSlotClick, onTodoClick, onAuto
         setHasMoved(true);
         setSelecting(true);
         // 選択モードに入った時にバイブレーション
-        if (navigator.vibrate) {
-          const vibrated = navigator.vibrate(30);
-          console.log('✅ Selection mode vibration triggered:', vibrated);
-        } else {
-          console.log('❌ Vibration not supported');
-        }
+        const vibrated = safeVibrate(30);
+        console.log(vibrated ? '✅ Selection mode vibration triggered' : '❌ Vibration not supported');
         // 現在のマス目を記録（次のマス目で比較するため）
         const containerRect = containerRef.getBoundingClientRect();
         const currentMinute = getMinuteFromY(touch.clientY, containerRect.top);
@@ -254,12 +268,8 @@ export function DayTimeline({ onEventClick, onTimeSlotClick, onTodoClick, onAuto
     // マス目を跨ぐたびにバイブレーション（Google Calendarライク）
     if (lastVibrateMinute !== minute) {
       console.log('🔔 Vibrate at minute:', minute, 'Previous:', lastVibrateMinute);
-      if (navigator.vibrate) {
-        const vibrated = navigator.vibrate(20); // 短い軽いバイブレーション
-        console.log('✅ Vibration triggered:', vibrated);
-      } else {
-        console.log('❌ Vibration not supported');
-      }
+      const vibrated = safeVibrate(20); // 短い軽いバイブレーション
+      console.log(vibrated ? '✅ Vibration triggered' : '❌ Vibration not supported');
       setLastVibrateMinute(minute);
     }
 
@@ -466,7 +476,14 @@ export function DayTimeline({ onEventClick, onTimeSlotClick, onTodoClick, onAuto
   );
 }
 
-function DraggableTaskCard({ event, position, isDragging, onClick }: any) {
+interface DraggableTaskCardProps {
+  event: CalendarEvent;
+  position: number;
+  isDragging: boolean;
+  onClick: () => void;
+}
+
+function DraggableTaskCard({ event, position, isDragging, onClick }: DraggableTaskCardProps) {
   const { attributes, listeners, setNodeRef, transform } = useDraggable({
     id: event.id,
     disabled: event.isFixed,
