@@ -112,6 +112,16 @@ export async function parseEventFromText(input: string): Promise<ParsedEvent | n
     }
 
     const parsedEvent = JSON.parse(functionCall.arguments) as ParsedEvent;
+
+    // タイムゾーン情報がない場合は、日本時間（+09:00）として明示的に指定
+    // これにより、ブラウザがUTCとして誤解釈するのを防ぐ
+    if (!parsedEvent.start.includes('+') && !parsedEvent.start.includes('Z')) {
+      parsedEvent.start = parsedEvent.start + '+09:00';
+    }
+    if (!parsedEvent.end.includes('+') && !parsedEvent.end.includes('Z')) {
+      parsedEvent.end = parsedEvent.end + '+09:00';
+    }
+
     console.log('✅ AIでイベントを解析しました:', parsedEvent);
 
     return parsedEvent;
