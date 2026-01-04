@@ -48,6 +48,7 @@ export function TaskEditModal({
 
   const [formData, setFormData] = useState({
     title: '',
+    date: format(defaultDate || new Date(), 'yyyy-MM-dd'),
     startTime: '09:00',
     endTime: '10:00',
     category: '学習',
@@ -74,6 +75,7 @@ export function TaskEditModal({
       const end = new Date(event.end);
       setFormData({
         title: event.title,
+        date: format(start, 'yyyy-MM-dd'),
         startTime: format(start, 'HH:mm'),
         endTime: format(end, 'HH:mm'),
         category: event.category,
@@ -95,6 +97,7 @@ export function TaskEditModal({
     } else if (defaultTime) {
       setFormData((prev) => ({
         ...prev,
+        date: format(defaultTime.start, 'yyyy-MM-dd'),
         startTime: format(defaultTime.start, 'HH:mm'),
         endTime: format(defaultTime.end, 'HH:mm'),
       }));
@@ -138,6 +141,7 @@ export function TaskEditModal({
     const endDateTime = parsedEvent.end.substring(0, 19);
 
     const startDate = new Date(startDateTime); // タイムゾーンなしでパース → ローカル時刻として解釈
+    const date = startDateTime.substring(0, 10); // "2026-01-05"
     const startTime = startDateTime.substring(11, 16); // "14:00"
     const endTime = endDateTime.substring(11, 16);
 
@@ -147,6 +151,7 @@ export function TaskEditModal({
     setFormData((prev) => ({
       ...prev,
       title: parsedEvent.title,
+      date: date,
       startTime: startTime,
       endTime: endTime,
       category: parsedEvent.category || 'その他',
@@ -155,8 +160,8 @@ export function TaskEditModal({
   };
 
   const handleSave = async () => {
-    // AIで指定された日付を優先的に使用
-    const baseDate = event ? new Date(event.start) : aiDate || defaultDate || new Date();
+    // formData.dateを使用
+    const baseDate = new Date(formData.date + 'T00:00:00');
     const [startHour, startMinute] = formData.startTime.split(':').map(Number);
     const [endHour, endMinute] = formData.endTime.split(':').map(Number);
 
@@ -263,6 +268,15 @@ export function TaskEditModal({
               value={formData.title}
               onChange={(e) => setFormData((prev) => ({ ...prev, title: e.target.value }))}
               placeholder="タスク名を入力"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label>日付</Label>
+            <Input
+              type="date"
+              value={formData.date}
+              onChange={(e) => setFormData((prev) => ({ ...prev, date: e.target.value }))}
             />
           </div>
 
