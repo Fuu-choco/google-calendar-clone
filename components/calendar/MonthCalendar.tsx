@@ -303,8 +303,15 @@ function DraggableEvent({ event, priorityColors, onEventClick, isDragging }: Dra
   const style = transform
     ? {
         transform: `translate3d(${transform.x}px, ${transform.y}px, 0)`,
+        touchAction: 'none',
+        userSelect: 'none' as const,
+        WebkitUserSelect: 'none' as const,
       }
-    : undefined;
+    : {
+        touchAction: 'none',
+        userSelect: 'none' as const,
+        WebkitUserSelect: 'none' as const,
+      };
 
   return (
     <div
@@ -316,6 +323,7 @@ function DraggableEvent({ event, priorityColors, onEventClick, isDragging }: Dra
         e.stopPropagation();
         onEventClick?.(event);
       }}
+      onContextMenu={(e) => e.preventDefault()}
       className={cn(
         'text-[10px] md:text-xs px-1 py-0.5 rounded border-l-2 truncate cursor-move',
         priorityColors[event.priority],
