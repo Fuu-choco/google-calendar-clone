@@ -133,8 +133,13 @@ export function TaskEditModal({
   };
 
   const handleAIEventParsed = (parsedEvent: ParsedEvent) => {
-    const startDate = new Date(parsedEvent.start);
-    const endDate = new Date(parsedEvent.end);
+    // ISO文字列から日付と時刻を直接抽出（タイムゾーン変換を避ける）
+    const startDateTime = parsedEvent.start.substring(0, 19); // "2026-01-05T14:00:00"
+    const endDateTime = parsedEvent.end.substring(0, 19);
+
+    const startDate = new Date(startDateTime); // タイムゾーンなしでパース → ローカル時刻として解釈
+    const startTime = startDateTime.substring(11, 16); // "14:00"
+    const endTime = endDateTime.substring(11, 16);
 
     // AIで指定された日付を保存
     setAiDate(startDate);
@@ -142,8 +147,8 @@ export function TaskEditModal({
     setFormData((prev) => ({
       ...prev,
       title: parsedEvent.title,
-      startTime: format(startDate, 'HH:mm'),
-      endTime: format(endDate, 'HH:mm'),
+      startTime: startTime,
+      endTime: endTime,
       category: parsedEvent.category || 'その他',
       priority: parsedEvent.priority || 'medium',
     }));
