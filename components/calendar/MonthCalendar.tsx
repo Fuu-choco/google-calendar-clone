@@ -13,6 +13,9 @@ import {
   format,
   isToday,
   parseISO,
+  startOfDay,
+  setHours,
+  setMinutes,
 } from 'date-fns';
 import { ja } from 'date-fns/locale';
 import { useAppStore } from '@/lib/store';
@@ -23,6 +26,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { DndContext, DragEndEvent, useDraggable, useDroppable, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
+import { toast } from 'sonner';
 
 interface MonthCalendarProps {
   onEventClick?: (event: any) => void;
@@ -30,9 +35,52 @@ interface MonthCalendarProps {
 }
 
 export function MonthCalendar({ onEventClick, onDateClick }: MonthCalendarProps) {
-  const { currentDate, events, setSelectedDate, setViewMode } = useAppStore();
+  const { currentDate, events, setSelectedDate, setViewMode, updateEvent } = useAppStore();
   const [showDayModal, setShowDayModal] = useState(false);
   const [modalDate, setModalDate] = useState<Date | null>(null);
+  const [draggedEvent, setDraggedEvent] = useState<string | null>(null);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    })
+  );
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+
+    if (!over) {
+      setDraggedEvent(null);
+      return;
+    }
+
+    const eventId = active.id as string;
+    const targetDateStr = over.id as string;
+    const targetEvent = events.find(e => e.id === eventId);
+
+    if (!targetEvent || targetEvent.isFixed) {
+      setDraggedEvent(null);
+      return;
+    }
+
+    const targetDate = parseISO(targetDateStr);
+    const oldStart = parseISO(targetEvent.start);
+    const oldEnd = parseISO(targetEvent.end);
+
+    // 時刻を保持したまま日付だけ変更
+    const newStart = setMinutes(setHours(startOfDay(targetDate), oldStart.getHours()), oldStart.getMinutes());
+    const newEnd = setMinutes(setHours(startOfDay(targetDate), oldEnd.getHours()), oldEnd.getMinutes());
+
+    updateEvent(eventId, {
+      start: newStart.toISOString(),
+      end: newEnd.toISOString(),
+    });
+
+    toast.success('イベントを移動しました');
+    setDraggedEvent(null);
+  };
 
   const monthStart = startOfMonth(currentDate);
   const monthEnd = endOfMonth(monthStart);
@@ -83,7 +131,7 @@ export function MonthCalendar({ onEventClick, onDateClick }: MonthCalendarProps)
     : [];
 
   return (
-    <>
+    <DndContext sensors={sensors} onDragEnd={handleDragEnd} onDragStart={(e) => setDraggedEvent(e.active.id as string)}>
       <div className="flex flex-col h-full bg-white dark:bg-slate-950">
         <div className="grid grid-cols-7 border-b border-slate-200 dark:border-slate-800">
           {weekDays.map((day) => (
@@ -104,53 +152,17 @@ export function MonthCalendar({ onEventClick, onDateClick }: MonthCalendarProps)
             const isDayToday = isToday(day);
 
             return (
-              <button
+              <DroppableDay
                 key={index}
-                onClick={() => handleDateClick(day)}
-                className={cn(
-                  'border-r border-b border-slate-200 dark:border-slate-800 p-1.5 text-left hover:bg-slate-50 dark:hover:bg-slate-900 transition-colors relative group min-h-[80px] md:min-h-[100px] flex flex-col',
-                  !isCurrentMonth && 'bg-slate-50/50 dark:bg-slate-900/50 text-slate-400'
-                )}
-              >
-                <span
-                  className={cn(
-                    'inline-flex items-center justify-center w-6 h-6 text-xs rounded-full transition-colors mb-1',
-                    isDayToday &&
-                      'bg-blue-600 text-white font-bold',
-                    !isDayToday && isCurrentMonth && 'text-slate-900 dark:text-white',
-                    !isDayToday && !isCurrentMonth && 'text-slate-400'
-                  )}
-                >
-                  {format(day, 'd')}
-                </span>
-
-                <div className="flex-1 space-y-0.5 overflow-hidden">
-                  {visibleEvents.slice(0, 3).map((event) => (
-                    <div
-                      key={event.id}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onEventClick?.(event);
-                      }}
-                      className={cn(
-                        'text-[10px] md:text-xs px-1 py-0.5 rounded border-l-2 truncate',
-                        priorityColors[event.priority]
-                      )}
-                    >
-                      {event.title}
-                    </div>
-                  ))}
-                  {visibleEvents.length > 3 && (
-                    <p className="text-[9px] md:text-xs text-slate-500 dark:text-slate-400 px-1">
-                      +{visibleEvents.length - 3}件
-                    </p>
-                  )}
-                </div>
-
-                {isDayToday && (
-                  <div className="absolute inset-0 border-2 border-blue-600 dark:border-blue-500 rounded-lg pointer-events-none" />
-                )}
-              </button>
+                day={day}
+                isCurrentMonth={isCurrentMonth}
+                isDayToday={isDayToday}
+                visibleEvents={visibleEvents}
+                priorityColors={priorityColors}
+                onDateClick={handleDateClick}
+                onEventClick={onEventClick}
+                draggedEvent={draggedEvent}
+              />
             );
           })}
         </div>
@@ -195,6 +207,117 @@ export function MonthCalendar({ onEventClick, onDateClick }: MonthCalendarProps)
           </div>
         </DialogContent>
       </Dialog>
-    </>
+    </DndContext>
+  );
+}
+
+interface DroppableDayProps {
+  day: Date;
+  isCurrentMonth: boolean;
+  isDayToday: boolean;
+  visibleEvents: any[];
+  priorityColors: any;
+  onDateClick: (date: Date) => void;
+  onEventClick?: (event: any) => void;
+  draggedEvent: string | null;
+}
+
+function DroppableDay({
+  day,
+  isCurrentMonth,
+  isDayToday,
+  visibleEvents,
+  priorityColors,
+  onDateClick,
+  onEventClick,
+  draggedEvent,
+}: DroppableDayProps) {
+  const { setNodeRef, isOver } = useDroppable({
+    id: format(day, 'yyyy-MM-dd'),
+  });
+
+  return (
+    <button
+      ref={setNodeRef}
+      onClick={() => onDateClick(day)}
+      className={cn(
+        'border-r border-b border-slate-200 dark:border-slate-800 p-1.5 text-left hover:bg-slate-50 dark:hover:bg-slate-900 transition-colors relative group min-h-[80px] md:min-h-[100px] flex flex-col',
+        !isCurrentMonth && 'bg-slate-50/50 dark:bg-slate-900/50 text-slate-400',
+        isOver && 'bg-blue-50 dark:bg-blue-950/30 border-blue-300 dark:border-blue-700'
+      )}
+    >
+      <span
+        className={cn(
+          'inline-flex items-center justify-center w-6 h-6 text-xs rounded-full transition-colors mb-1',
+          isDayToday && 'bg-blue-600 text-white font-bold',
+          !isDayToday && isCurrentMonth && 'text-slate-900 dark:text-white',
+          !isDayToday && !isCurrentMonth && 'text-slate-400'
+        )}
+      >
+        {format(day, 'd')}
+      </span>
+
+      <div className="flex-1 space-y-0.5 overflow-hidden">
+        {visibleEvents.slice(0, 3).map((event) => (
+          <DraggableEvent
+            key={event.id}
+            event={event}
+            priorityColors={priorityColors}
+            onEventClick={onEventClick}
+            isDragging={draggedEvent === event.id}
+          />
+        ))}
+        {visibleEvents.length > 3 && (
+          <p className="text-[9px] md:text-xs text-slate-500 dark:text-slate-400 px-1">
+            +{visibleEvents.length - 3}件
+          </p>
+        )}
+      </div>
+
+      {isDayToday && (
+        <div className="absolute inset-0 border-2 border-blue-600 dark:border-blue-500 rounded-lg pointer-events-none" />
+      )}
+    </button>
+  );
+}
+
+interface DraggableEventProps {
+  event: any;
+  priorityColors: any;
+  onEventClick?: (event: any) => void;
+  isDragging: boolean;
+}
+
+function DraggableEvent({ event, priorityColors, onEventClick, isDragging }: DraggableEventProps) {
+  const { attributes, listeners, setNodeRef, transform } = useDraggable({
+    id: event.id,
+    disabled: event.isFixed,
+  });
+
+  const style = transform
+    ? {
+        transform: `translate3d(${transform.x}px, ${transform.y}px, 0)`,
+      }
+    : undefined;
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      {...listeners}
+      {...attributes}
+      onClick={(e) => {
+        e.stopPropagation();
+        onEventClick?.(event);
+      }}
+      className={cn(
+        'text-[10px] md:text-xs px-1 py-0.5 rounded border-l-2 truncate cursor-move',
+        priorityColors[event.priority],
+        isDragging && 'opacity-50 shadow-lg',
+        event.isFixed && 'cursor-not-allowed opacity-75'
+      )}
+    >
+      {event.title}
+    </div>
   );
 }
