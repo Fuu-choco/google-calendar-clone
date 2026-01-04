@@ -369,18 +369,24 @@ export function SettingsView() {
                       key={template.id}
                       className="flex items-center justify-between p-3 border border-slate-200 dark:border-slate-800 rounded-lg"
                     >
-                      <div>
-                        <p className="font-medium text-slate-900 dark:text-white">
-                          {template.name}
-                        </p>
-                        <p className="text-sm text-slate-500 dark:text-slate-400">
-                          {template.duration}分 · {template.category} · 優先度:{' '}
-                          {template.priority === 'high'
-                            ? '高'
-                            : template.priority === 'medium'
-                            ? '中'
-                            : '低'}
-                        </p>
+                      <div className="flex items-start gap-3">
+                        <div
+                          className="w-4 h-4 rounded-full mt-1 flex-shrink-0"
+                          style={{ backgroundColor: template.color }}
+                        />
+                        <div>
+                          <p className="font-medium text-slate-900 dark:text-white">
+                            {template.name}
+                          </p>
+                          <p className="text-sm text-slate-500 dark:text-slate-400">
+                            {template.duration}分 · {template.category} · 優先度:{' '}
+                            {template.priority === 'high'
+                              ? '高'
+                              : template.priority === 'medium'
+                              ? '中'
+                              : '低'}
+                          </p>
+                        </div>
                       </div>
                       <div className="flex gap-1">
                         <Button

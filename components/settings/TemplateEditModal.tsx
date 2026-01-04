@@ -181,16 +181,23 @@ export function TemplateEditModal({
             <div className="space-y-2">
               <Label htmlFor="color">色</Label>
               <div className="flex items-center gap-3">
-                <Input
-                  id="color"
-                  type="color"
-                  value={formData.color}
-                  onChange={(e) =>
-                    setFormData({ ...formData, color: e.target.value })
-                  }
-                  className="w-20 h-10 cursor-pointer"
-                />
-                <span className="text-sm text-slate-500 dark:text-slate-400">
+                <div className="flex items-center gap-2">
+                  <Input
+                    id="color"
+                    type="color"
+                    value={formData.color}
+                    onChange={(e) =>
+                      setFormData({ ...formData, color: e.target.value })
+                    }
+                    className="w-20 h-10 cursor-pointer"
+                  />
+                  <div
+                    className="w-10 h-10 rounded-lg border-2 border-slate-300 dark:border-slate-600"
+                    style={{ backgroundColor: formData.color }}
+                    title={formData.color}
+                  />
+                </div>
+                <span className="text-sm font-mono text-slate-600 dark:text-slate-400">
                   {formData.color}
                 </span>
               </div>
