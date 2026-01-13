@@ -145,15 +145,15 @@ export function DayTimeline({ onEventClick, onTimeSlotClick, onTodoClick, onAuto
     }
   }, [onAutoGenerate]);
 
-  const handleDragEnd = useCallback((event: DragEndEvent) => {
+  const handleDragEnd = useCallback(async (event: DragEndEvent) => {
     const { active, delta } = event;
     const eventId = active.id as string;
 
     // dayEventsから探す（展開されたイベントを含む）
     const targetEvent = dayEvents.find(e => e.id === eventId);
 
-    if (!targetEvent || targetEvent.isFixed || targetEvent._isRecurring || (targetEvent.repeat && targetEvent.repeat !== 'none')) {
-      // 固定イベント、繰り返しイベント、繰り返しイベントのインスタンスはドラッグ不可
+    if (!targetEvent || targetEvent.isFixed || targetEvent._isRecurring) {
+      // 固定イベント、繰り返しイベントのインスタンスはドラッグ不可
       setDraggedEvent(null);
       return;
     }
@@ -170,13 +170,19 @@ export function DayTimeline({ onEventClick, onTimeSlotClick, onTodoClick, onAuto
     const newStart = addMinutes(parseISO(targetEvent.start), adjustedMinutes);
     const newEnd = addMinutes(parseISO(targetEvent.end), adjustedMinutes);
 
-    updateEvent(eventId, {
-      start: newStart.toISOString(),
-      end: newEnd.toISOString(),
-    });
-
-    toast.success('タスクの時間を更新しました');
-    setDraggedEvent(null);
+    try {
+      console.log('🔄 Updating event:', eventId, 'from', targetEvent.start, 'to', newStart.toISOString());
+      await updateEvent(eventId, {
+        start: newStart.toISOString(),
+        end: newEnd.toISOString(),
+      });
+      toast.success('タスクの時間を更新しました');
+    } catch (error) {
+      console.error('❌ Failed to update event:', error);
+      toast.error('イベントの更新に失敗しました');
+    } finally {
+      setDraggedEvent(null);
+    }
   }, [dayEvents, updateEvent]);
 
   const handlers = useSwipeable({
@@ -538,8 +544,8 @@ interface DraggableTaskCardProps {
 function DraggableTaskCard({ event, position, isDragging, onClick }: DraggableTaskCardProps) {
   const { attributes, listeners, setNodeRef, transform } = useDraggable({
     id: event.id,
-    // 固定イベント、繰り返しイベント、繰り返しイベントのインスタンスはドラッグ不可
-    disabled: event.isFixed || event._isRecurring || (event.repeat && event.repeat !== 'none'),
+    // 固定イベント、繰り返しイベントのインスタンスはドラッグ不可
+    disabled: event.isFixed || event._isRecurring,
   });
 
   const style = transform

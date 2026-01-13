@@ -55,7 +55,7 @@ export function MonthCalendar({ onEventClick, onDateClick }: MonthCalendarProps)
     })
   );
 
-  const handleDragEnd = (event: DragEndEvent) => {
+  const handleDragEnd = async (event: DragEndEvent) => {
     const { active, over } = event;
 
     if (!over) {
@@ -67,8 +67,8 @@ export function MonthCalendar({ onEventClick, onDateClick }: MonthCalendarProps)
     const targetDateStr = over.id as string;
     const targetEvent = events.find(e => e.id === eventId);
 
-    if (!targetEvent || targetEvent.isFixed || targetEvent._isRecurring || (targetEvent.repeat && targetEvent.repeat !== 'none')) {
-      // 固定イベント、繰り返しイベント、繰り返しイベントのインスタンスはドラッグ不可
+    if (!targetEvent || targetEvent.isFixed || targetEvent._isRecurring) {
+      // 固定イベント、繰り返しイベントのインスタンスはドラッグ不可
       setDraggedEvent(null);
       return;
     }
@@ -81,13 +81,19 @@ export function MonthCalendar({ onEventClick, onDateClick }: MonthCalendarProps)
     const newStart = setMinutes(setHours(startOfDay(targetDate), oldStart.getHours()), oldStart.getMinutes());
     const newEnd = setMinutes(setHours(startOfDay(targetDate), oldEnd.getHours()), oldEnd.getMinutes());
 
-    updateEvent(eventId, {
-      start: newStart.toISOString(),
-      end: newEnd.toISOString(),
-    });
-
-    toast.success('イベントを移動しました');
-    setDraggedEvent(null);
+    try {
+      console.log('🔄 Moving event:', eventId, 'to', targetDate);
+      await updateEvent(eventId, {
+        start: newStart.toISOString(),
+        end: newEnd.toISOString(),
+      });
+      toast.success('イベントを移動しました');
+    } catch (error) {
+      console.error('❌ Failed to move event:', error);
+      toast.error('イベントの移動に失敗しました');
+    } finally {
+      setDraggedEvent(null);
+    }
   };
 
   const monthStart = startOfMonth(currentDate);
@@ -298,8 +304,8 @@ interface DraggableEventProps {
 function DraggableEvent({ event, priorityColors, onEventClick, isDragging }: DraggableEventProps) {
   const { attributes, listeners, setNodeRef, transform } = useDraggable({
     id: event.id,
-    // 固定イベント、繰り返しイベント、繰り返しイベントのインスタンスはドラッグ不可
-    disabled: event.isFixed || event._isRecurring || (event.repeat && event.repeat !== 'none'),
+    // 固定イベント、繰り返しイベントのインスタンスはドラッグ不可
+    disabled: event.isFixed || event._isRecurring,
   });
 
   const style = transform
