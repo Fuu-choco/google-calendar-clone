@@ -1,7 +1,7 @@
 'use client';
 
 // MonthCalendar component
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import {
   startOfMonth,
   endOfMonth,
@@ -40,6 +40,7 @@ export function MonthCalendar({ onEventClick, onDateClick }: MonthCalendarProps)
   const [showDayModal, setShowDayModal] = useState(false);
   const [modalDate, setModalDate] = useState<Date | null>(null);
   const [draggedEvent, setDraggedEvent] = useState<string | null>(null);
+  const isUpdatingRef = useRef<boolean>(false);
 
   const sensors = useSensors(
     useSensor(MouseSensor, {
@@ -56,6 +57,12 @@ export function MonthCalendar({ onEventClick, onDateClick }: MonthCalendarProps)
   );
 
   const handleDragEnd = async (event: DragEndEvent) => {
+    // 複数回呼び出されるのを防ぐ
+    if (isUpdatingRef.current) {
+      console.log('⚠️ Update already in progress, ignoring duplicate call');
+      return;
+    }
+
     const { active, over } = event;
 
     if (!over) {
@@ -81,6 +88,7 @@ export function MonthCalendar({ onEventClick, onDateClick }: MonthCalendarProps)
     const newStart = setMinutes(setHours(startOfDay(targetDate), oldStart.getHours()), oldStart.getMinutes());
     const newEnd = setMinutes(setHours(startOfDay(targetDate), oldEnd.getHours()), oldEnd.getMinutes());
 
+    isUpdatingRef.current = true;
     try {
       console.log('🔄 Moving event:', eventId, 'to', targetDate);
       await updateEvent(eventId, {
@@ -92,6 +100,7 @@ export function MonthCalendar({ onEventClick, onDateClick }: MonthCalendarProps)
       console.error('❌ Failed to move event:', error);
       toast.error('イベントの移動に失敗しました');
     } finally {
+      isUpdatingRef.current = false;
       setDraggedEvent(null);
     }
   };

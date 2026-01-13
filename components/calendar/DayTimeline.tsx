@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useAppStore } from '@/lib/store';
 import { CalendarEvent } from '@/lib/types';
 import { format, parseISO, isSameDay, addDays, subDays, addMinutes, isToday } from 'date-fns';
@@ -31,6 +31,7 @@ export function DayTimeline({ onEventClick, onTimeSlotClick, onTodoClick, onAuto
   } = useAppStore();
 
   const [draggedEvent, setDraggedEvent] = useState<string | null>(null);
+  const isUpdatingRef = useRef<boolean>(false);
   const [selecting, setSelecting] = useState(false);
   const [selectionStart, setSelectionStart] = useState<number | null>(null);
   const [selectionEnd, setSelectionEnd] = useState<number | null>(null);
@@ -146,6 +147,12 @@ export function DayTimeline({ onEventClick, onTimeSlotClick, onTodoClick, onAuto
   }, [onAutoGenerate]);
 
   const handleDragEnd = useCallback(async (event: DragEndEvent) => {
+    // 複数回呼び出されるのを防ぐ
+    if (isUpdatingRef.current) {
+      console.log('⚠️ Update already in progress, ignoring duplicate call');
+      return;
+    }
+
     const { active, delta } = event;
     const eventId = active.id as string;
 
@@ -170,6 +177,7 @@ export function DayTimeline({ onEventClick, onTimeSlotClick, onTodoClick, onAuto
     const newStart = addMinutes(parseISO(targetEvent.start), adjustedMinutes);
     const newEnd = addMinutes(parseISO(targetEvent.end), adjustedMinutes);
 
+    isUpdatingRef.current = true;
     try {
       console.log('🔄 Updating event:', eventId, 'from', targetEvent.start, 'to', newStart.toISOString());
       await updateEvent(eventId, {
@@ -181,6 +189,7 @@ export function DayTimeline({ onEventClick, onTimeSlotClick, onTodoClick, onAuto
       console.error('❌ Failed to update event:', error);
       toast.error('イベントの更新に失敗しました');
     } finally {
+      isUpdatingRef.current = false;
       setDraggedEvent(null);
     }
   }, [dayEvents, updateEvent]);
