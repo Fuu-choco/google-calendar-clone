@@ -74,8 +74,8 @@ export function MonthCalendar({ onEventClick, onDateClick }: MonthCalendarProps)
     const targetDateStr = over.id as string;
     const targetEvent = events.find(e => e.id === eventId);
 
-    if (!targetEvent || targetEvent.isFixed || targetEvent._isRecurring) {
-      // 固定イベント、繰り返しイベントのインスタンスはドラッグ不可
+    if (!targetEvent || targetEvent.isFixed) {
+      // 固定イベントはドラッグ不可
       setDraggedEvent(null);
       return;
     }
@@ -90,12 +90,14 @@ export function MonthCalendar({ onEventClick, onDateClick }: MonthCalendarProps)
 
     isUpdatingRef.current = true;
     try {
-      console.log('🔄 Moving event:', eventId, 'to', targetDate);
-      await updateEvent(eventId, {
+      // 繰り返しイベントのインスタンスの場合、元のイベントIDを使用
+      const updateId = targetEvent._originalId || eventId;
+      console.log('🔄 Moving event:', updateId, 'to', targetDate);
+      await updateEvent(updateId, {
         start: newStart.toISOString(),
         end: newEnd.toISOString(),
       });
-      toast.success('イベントを移動しました');
+      toast.success(targetEvent._isRecurring ? 'すべての繰り返しイベントを移動しました' : 'イベントを移動しました');
     } catch (error) {
       console.error('❌ Failed to move event:', error);
       toast.error('イベントの移動に失敗しました');
@@ -313,8 +315,8 @@ interface DraggableEventProps {
 function DraggableEvent({ event, priorityColors, onEventClick, isDragging }: DraggableEventProps) {
   const { attributes, listeners, setNodeRef, transform } = useDraggable({
     id: event.id,
-    // 固定イベント、繰り返しイベントのインスタンスはドラッグ不可
-    disabled: event.isFixed || event._isRecurring,
+    // 固定イベントのみドラッグ不可（繰り返しイベントはドラッグ可能）
+    disabled: event.isFixed,
   });
 
   const style = transform

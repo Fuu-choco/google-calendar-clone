@@ -12,7 +12,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { TaskCard } from './TaskCard';
 import { toast } from 'sonner';
 import { useSwipeable } from 'react-swipeable';
-import { DndContext, DragEndEvent, PointerSensor, useSensor, useSensors, useDraggable } from '@dnd-kit/core';
+import { DndContext, DragEndEvent, PointerSensor, MouseSensor, TouchSensor, useSensor, useSensors, useDraggable } from '@dnd-kit/core';
 
 interface DayTimelineProps {
   onEventClick?: (event: CalendarEvent) => void;
@@ -86,9 +86,15 @@ export function DayTimeline({ onEventClick, onTimeSlotClick, onTodoClick, onAuto
   }, [longPressTimer]);
 
   const sensors = useSensors(
-    useSensor(PointerSensor, {
+    useSensor(MouseSensor, {
       activationConstraint: {
         distance: 8,
+      },
+    }),
+    useSensor(TouchSensor, {
+      activationConstraint: {
+        delay: 250, // イベントカード上での長押しドラッグ用
+        tolerance: 5,
       },
     })
   );
@@ -159,8 +165,8 @@ export function DayTimeline({ onEventClick, onTimeSlotClick, onTodoClick, onAuto
     // dayEventsから探す（展開されたイベントを含む）
     const targetEvent = dayEvents.find(e => e.id === eventId);
 
-    if (!targetEvent || targetEvent.isFixed || targetEvent._isRecurring) {
-      // 固定イベント、繰り返しイベントのインスタンスはドラッグ不可
+    if (!targetEvent || targetEvent.isFixed) {
+      // 固定イベントはドラッグ不可
       setDraggedEvent(null);
       return;
     }
@@ -179,12 +185,14 @@ export function DayTimeline({ onEventClick, onTimeSlotClick, onTodoClick, onAuto
 
     isUpdatingRef.current = true;
     try {
-      console.log('🔄 Updating event:', eventId, 'from', targetEvent.start, 'to', newStart.toISOString());
-      await updateEvent(eventId, {
+      // 繰り返しイベントのインスタンスの場合、元のイベントIDを使用
+      const updateId = targetEvent._originalId || eventId;
+      console.log('🔄 Updating event:', updateId, 'from', targetEvent.start, 'to', newStart.toISOString());
+      await updateEvent(updateId, {
         start: newStart.toISOString(),
         end: newEnd.toISOString(),
       });
-      toast.success('タスクの時間を更新しました');
+      toast.success(targetEvent._isRecurring ? 'すべての繰り返しタスクの時間を更新しました' : 'タスクの時間を更新しました');
     } catch (error) {
       console.error('❌ Failed to update event:', error);
       toast.error('イベントの更新に失敗しました');
@@ -233,14 +241,14 @@ export function DayTimeline({ onEventClick, onTimeSlotClick, onTodoClick, onAuto
     setHasMoved(false);
     setLastVibrateMinute(null);
 
-    // 1秒後に長押しを有効化
+    // 300ms後に長押しを有効化（イベントカードのドラッグ開始より早く）
     const timer = setTimeout(() => {
       console.log('⏱️ Long press activated!');
       setIsLongPressActivated(true);
       // バイブレーション（対応デバイスのみ）
       const vibrated = safeVibrate(50);
       console.log(vibrated ? '✅ Long press vibration triggered' : '❌ Vibration not supported');
-    }, 1000);
+    }, 300);
 
     setLongPressTimer(timer);
   }, [getMinuteFromY, safeVibrate]);
@@ -553,8 +561,8 @@ interface DraggableTaskCardProps {
 function DraggableTaskCard({ event, position, isDragging, onClick }: DraggableTaskCardProps) {
   const { attributes, listeners, setNodeRef, transform } = useDraggable({
     id: event.id,
-    // 固定イベント、繰り返しイベントのインスタンスはドラッグ不可
-    disabled: event.isFixed || event._isRecurring,
+    // 固定イベントのみドラッグ不可（繰り返しイベントはドラッグ可能）
+    disabled: event.isFixed,
   });
 
   const style = transform
