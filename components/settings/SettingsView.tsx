@@ -16,7 +16,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
-import { Trash2, Edit2, Plus, Save, Download, Upload, Database } from 'lucide-react';
+import { Trash2, Edit2, Plus, Save, Download, Upload, Database, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
 import { TemplateEditModal } from './TemplateEditModal';
 import { Template } from '@/lib/types';
@@ -807,6 +807,16 @@ export function SettingsView() {
               >
                 <Download className="h-4 w-4 mr-2" />
                 ローカルデータをエクスポート
+              </Button>
+              <Button
+                variant="outline"
+                className="w-full"
+                onClick={() => {
+                  window.location.reload();
+                }}
+              >
+                <RefreshCw className="h-4 w-4 mr-2" />
+                ページを再読み込み
               </Button>
             </CardContent>
           </Card>
