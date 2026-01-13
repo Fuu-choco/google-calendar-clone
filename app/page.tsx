@@ -31,10 +31,10 @@ export default function Home() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // 通知権限をリクエスト（初回のみ）
-  useEffect(() => {
-    requestNotificationPermission();
-  }, []);
+  // 通知権限は設定画面でユーザーが明示的に許可する形にする
+  // useEffect(() => {
+  //   requestNotificationPermission();
+  // }, []);
 
   // Service Workerを登録（PWA機能を有効化）
   useEffect(() => {

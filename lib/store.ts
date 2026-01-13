@@ -4,6 +4,26 @@ import { CalendarEvent, Todo, Template, UserSettings, Goal, CategoryItem } from 
 import { AppNotification } from './types/notification';
 import { addDays, format } from 'date-fns';
 import {
+  fetchCalendarEvents,
+  createCalendarEvent,
+  updateCalendarEvent,
+  deleteCalendarEvent,
+  fetchTodos,
+  createTodo,
+  updateTodo as updateTodoSupabase,
+  deleteTodo as deleteTodoSupabase,
+  fetchTemplates,
+  createTemplate,
+  updateTemplate as updateTemplateSupabase,
+  deleteTemplate as deleteTemplateSupabase,
+  fetchCategories,
+  createCategory,
+  updateCategory as updateCategorySupabase,
+  deleteCategory as deleteCategorySupabase,
+  fetchUserPreferences,
+  updateUserPreferences,
+} from './supabase-helpers';
+import {
   eventsDB,
   todosDB,
   templatesDB,
@@ -14,6 +34,11 @@ import {
 } from './indexedDB';
 import { generateRepeatTodos } from './repeatTodoGenerator';
 import { generateId } from './utils';
+
+// Supabaseが設定されているかチェック
+const isSupabaseConfigured = () => {
+  return !!(process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
+};
 
 interface AppState {
   currentDate: Date;
@@ -218,50 +243,119 @@ export const useAppStore = create<AppState>()(
       isLoading: false,
       notifications: [],
 
-      // IndexedDBからデータを取得
+      // データを取得（Supabaseまたはオフライン）
       fetchData: async () => {
         set({ isLoading: true });
         try {
-          // IndexedDBを初期化（デフォルトデータを投入）
-          await initializeDatabase();
+          // Supabaseが設定されているかチェック
+          const useSupabase = isSupabaseConfigured();
 
-          // 全データを取得
-          const [events, todos, templates, categories, userSettings, goals] = await Promise.all([
-            eventsDB.getAll(),
-            todosDB.getAll(),
-            templatesDB.getAll(),
-            categoriesDB.getAll(),
-            settingsDB.get(),
-            goalsDB.get(),
-          ]);
+          if (useSupabase) {
+            console.log('📡 Loading data from Supabase...');
+            // Supabaseからデータを取得
+            const [events, todos, templates, categories, userPrefs] = await Promise.all([
+              fetchCalendarEvents(),
+              fetchTodos(),
+              fetchTemplates(),
+              fetchCategories(),
+              fetchUserPreferences(),
+            ]);
 
-          // 繰り返しTodoを自動生成（30日先まで）
-          const newRepeatTodos = generateRepeatTodos(todos, new Date(), 30);
+            // Supabaseのuser_preferencesからアプリの設定と目標を変換
+            const userSettings: UserSettings = userPrefs ? {
+              focusType: userPrefs.concentration_type === 'morning' ? '朝型' : '夜型',
+              workDuration: userPrefs.work_duration_pref,
+              breakDuration: userPrefs.break_duration_pref,
+              wakeTime: userPrefs.ideal_wake_time,
+              sleepTime: userPrefs.ideal_sleep_time,
+              notificationEnabled: userPrefs.notifications_enabled,
+              taskReminder: userPrefs.todo_reminder_enabled,
+              taskReminderMinutes: userPrefs.task_reminder_default_minutes,
+              morningReview: userPrefs.morning_schedule_check_enabled,
+              morningReviewTime: userPrefs.morning_schedule_check_time,
+              sleepReminder: userPrefs.sleep_reminder_enabled,
+              sleepReminderTime: userPrefs.sleep_reminder_time,
+              longWorkAlert: userPrefs.long_work_alert_enabled,
+              longWorkAlertHours: userPrefs.long_work_alert_hours,
+            } : defaultSettings;
 
-          // 新しく生成されたTodoをIndexedDBに保存
-          if (newRepeatTodos.length > 0) {
-            console.log(`📅 Generating ${newRepeatTodos.length} repeat todos...`);
-            for (const newTodo of newRepeatTodos) {
-              await todosDB.add(newTodo);
+            const goals: Goal = userPrefs ? {
+              studyHours: userPrefs.weekly_study_hours_goal * 4, // 週次 → 月次
+              studyLongTermHours: 0,
+              studyLongTermDeadline: '',
+              workHours: userPrefs.weekly_work_hours_goal * 4, // 週次 → 月次
+              todoCompletionRate: userPrefs.todo_completion_goal,
+              studyCategoryId: '1',
+              workCategoryId: '2',
+            } : defaultGoals;
+
+            // 繰り返しTodoを自動生成（30日先まで）
+            const newRepeatTodos = generateRepeatTodos(todos, new Date(), 30);
+
+            // 新しく生成されたTodoをSupabaseに保存
+            if (newRepeatTodos.length > 0) {
+              console.log(`📅 Generating ${newRepeatTodos.length} repeat todos...`);
+              for (const newTodo of newRepeatTodos) {
+                await createTodo(newTodo);
+              }
             }
+
+            // 全Todoを再取得（新しく生成されたものを含む）
+            const allTodos = [...todos, ...newRepeatTodos];
+
+            set({
+              events,
+              todos: allTodos,
+              templates: templates.length > 0 ? templates : mockTemplates,
+              categories: categories.length > 0 ? categories : defaultCategories,
+              userSettings,
+              goals,
+              isLoading: false,
+            });
+
+            console.log('✅ Supabase data loaded successfully');
+          } else {
+            console.log('💾 Loading data from IndexedDB (offline mode)...');
+            // IndexedDBからデータを取得
+            await initializeDatabase();
+
+            const [events, todos, templates, categories, userSettings, goals] = await Promise.all([
+              eventsDB.getAll(),
+              todosDB.getAll(),
+              templatesDB.getAll(),
+              categoriesDB.getAll(),
+              settingsDB.get(),
+              goalsDB.get(),
+            ]);
+
+            // 繰り返しTodoを自動生成（30日先まで）
+            const newRepeatTodos = generateRepeatTodos(todos, new Date(), 30);
+
+            // 新しく生成されたTodoをIndexedDBに保存
+            if (newRepeatTodos.length > 0) {
+              console.log(`📅 Generating ${newRepeatTodos.length} repeat todos...`);
+              for (const newTodo of newRepeatTodos) {
+                await todosDB.add(newTodo);
+              }
+            }
+
+            // 全Todoを再取得（新しく生成されたものを含む）
+            const allTodos = [...todos, ...newRepeatTodos];
+
+            set({
+              events,
+              todos: allTodos,
+              templates: templates.length > 0 ? templates : mockTemplates,
+              categories: categories.length > 0 ? categories : defaultCategories,
+              userSettings: userSettings || defaultSettings,
+              goals: goals || defaultGoals,
+              isLoading: false,
+            });
+
+            console.log('✅ IndexedDB data loaded successfully (offline mode)');
           }
-
-          // 全Todoを再取得（新しく生成されたものを含む）
-          const allTodos = [...todos, ...newRepeatTodos];
-
-          set({
-            events,
-            todos: allTodos,
-            templates: templates.length > 0 ? templates : mockTemplates,
-            categories: categories.length > 0 ? categories : defaultCategories,
-            userSettings: userSettings || defaultSettings,
-            goals: goals || defaultGoals,
-            isLoading: false,
-          });
-
-          console.log('✅ IndexedDB data loaded successfully');
         } catch (error) {
-          console.error('❌ Error fetching data from IndexedDB:', error);
+          console.error('❌ Error fetching data:', error);
           set({ isLoading: false });
         }
       },
@@ -276,12 +370,27 @@ export const useAppStore = create<AppState>()(
       addEvent: async (event) => {
         console.log('💾 Store: addEvent called with:', event);
         try {
-          // IndexedDBに保存（そのまま保存）
-          await eventsDB.add(event);
-          console.log('✅ Store: Event saved to IndexedDB');
+          // Supabaseに保存
+          const savedEvent = await createCalendarEvent(event);
+          console.log('✅ Store: Event saved to Supabase');
+
+          // Supabaseのデータをアプリ形式に変換
+          const appEvent: CalendarEvent = {
+            id: savedEvent.id,
+            title: savedEvent.title,
+            start: savedEvent.scheduled_start,
+            end: savedEvent.scheduled_end,
+            priority: savedEvent.priority === 1 ? 'high' : savedEvent.priority === 2 ? 'medium' : 'low',
+            category: savedEvent.category,
+            color: savedEvent.color,
+            isFixed: savedEvent.is_fixed,
+            notificationEnabled: savedEvent.notification_enabled,
+            notificationMinutes: savedEvent.notification_minutes_before || [],
+            repeat: savedEvent.recurrence_type || 'none',
+          };
 
           // ローカル状態を更新
-          set((state) => ({ events: [...state.events, event] }));
+          set((state) => ({ events: [...state.events, appEvent] }));
           console.log('✅ Store: Event added to state successfully');
         } catch (error) {
           console.error('❌ Store: Error adding event:', error);
@@ -295,7 +404,7 @@ export const useAppStore = create<AppState>()(
           if (!event) throw new Error('Event not found');
 
           const updatedEvent = { ...event, ...updates };
-          await eventsDB.update(updatedEvent);
+          await updateCalendarEvent(id, updates);
 
           set((state) => ({
             events: state.events.map((e) => (e.id === id ? updatedEvent : e)),
@@ -310,7 +419,7 @@ export const useAppStore = create<AppState>()(
 
       deleteEvent: async (id) => {
         try {
-          await eventsDB.delete(id);
+          await deleteCalendarEvent(id);
           set((state) => ({
             events: state.events.filter((e) => e.id !== id),
             selectedEvent: state.selectedEvent?.id === id ? null : state.selectedEvent,
@@ -327,8 +436,17 @@ export const useAppStore = create<AppState>()(
       // Todo操作
       addTodo: async (todo) => {
         try {
-          await todosDB.add(todo);
-          set((state) => ({ todos: [...state.todos, todo] }));
+          const savedTodo = await createTodo(todo);
+          // Supabaseのデータをアプリ形式に変換
+          const appTodo: Todo = {
+            id: savedTodo.id,
+            content: savedTodo.content,
+            completed: savedTodo.completed,
+            dueDate: savedTodo.due_date,
+            createdDate: savedTodo.created_date,
+            priority: savedTodo.priority,
+          };
+          set((state) => ({ todos: [...state.todos, appTodo] }));
           console.log('✅ Todo added successfully');
         } catch (error) {
           console.error('❌ Error adding todo:', error);
@@ -342,7 +460,7 @@ export const useAppStore = create<AppState>()(
           if (!todo) throw new Error('Todo not found');
 
           const updatedTodo = { ...todo, ...updates };
-          await todosDB.update(updatedTodo);
+          await updateTodoSupabase(id, updates);
 
           set((state) => ({
             todos: state.todos.map((t) => (t.id === id ? updatedTodo : t)),
@@ -356,7 +474,7 @@ export const useAppStore = create<AppState>()(
 
       deleteTodo: async (id) => {
         try {
-          await todosDB.delete(id);
+          await deleteTodoSupabase(id);
           set((state) => ({
             todos: state.todos.filter((t) => t.id !== id),
           }));
@@ -373,7 +491,7 @@ export const useAppStore = create<AppState>()(
 
         try {
           const updatedTodo = { ...todo, completed: !todo.completed };
-          await todosDB.update(updatedTodo);
+          await updateTodoSupabase(id, { completed: !todo.completed });
 
           set((state) => ({
             todos: state.todos.map((t) => (t.id === id ? updatedTodo : t)),
@@ -388,12 +506,16 @@ export const useAppStore = create<AppState>()(
       // テンプレート操作
       addTemplate: async (template) => {
         try {
-          const newTemplate: Template = {
-            ...template,
-            id: template.id || generateId(),
+          const savedTemplate = await createTemplate(template);
+          const appTemplate: Template = {
+            id: savedTemplate.id,
+            name: savedTemplate.name,
+            duration: savedTemplate.default_duration,
+            category: savedTemplate.category,
+            priority: savedTemplate.priority === 1 ? 'high' : savedTemplate.priority === 2 ? 'medium' : 'low',
+            color: savedTemplate.color,
           };
-          await templatesDB.add(newTemplate);
-          set((state) => ({ templates: [...state.templates, newTemplate] }));
+          set((state) => ({ templates: [...state.templates, appTemplate] }));
           console.log('✅ Template added successfully');
         } catch (error) {
           console.error('❌ Error adding template:', error);
@@ -407,7 +529,7 @@ export const useAppStore = create<AppState>()(
           if (!template) throw new Error('Template not found');
 
           const updatedTemplate = { ...template, ...updates };
-          await templatesDB.update(updatedTemplate);
+          await updateTemplateSupabase(id, updates);
 
           set((state) => ({
             templates: state.templates.map((t) => (t.id === id ? updatedTemplate : t)),
@@ -421,7 +543,7 @@ export const useAppStore = create<AppState>()(
 
       deleteTemplate: async (id) => {
         try {
-          await templatesDB.delete(id);
+          await deleteTemplateSupabase(id);
           set((state) => ({
             templates: state.templates.filter((t) => t.id !== id),
           }));
@@ -435,12 +557,14 @@ export const useAppStore = create<AppState>()(
       // カテゴリ操作
       addCategory: async (category) => {
         try {
-          const newCategory: CategoryItem = {
-            id: generateId(),
-            ...category,
+          const savedCategory = await createCategory(category);
+          const appCategory: CategoryItem = {
+            id: savedCategory.id,
+            name: savedCategory.name,
+            color: savedCategory.color,
+            isDefault: savedCategory.is_default,
           };
-          await categoriesDB.add(newCategory);
-          set((state) => ({ categories: [...state.categories, newCategory] }));
+          set((state) => ({ categories: [...state.categories, appCategory] }));
           console.log('✅ Category added successfully');
         } catch (error) {
           console.error('❌ Error adding category:', error);
@@ -454,7 +578,7 @@ export const useAppStore = create<AppState>()(
           if (!category) throw new Error('Category not found');
 
           const updatedCategory = { ...category, ...updates };
-          await categoriesDB.update(updatedCategory);
+          await updateCategorySupabase(id, updates);
 
           set((state) => ({
             categories: state.categories.map((c) => (c.id === id ? updatedCategory : c)),
@@ -468,7 +592,7 @@ export const useAppStore = create<AppState>()(
 
       deleteCategory: async (id) => {
         try {
-          await categoriesDB.delete(id);
+          await deleteCategorySupabase(id);
           set((state) => ({
             categories: state.categories.filter((c) => c.id !== id),
           }));
@@ -487,8 +611,8 @@ export const useAppStore = create<AppState>()(
           // ローカル状態を即座に更新
           set({ userSettings: newSettings });
 
-          // IndexedDBに保存
-          await settingsDB.save(newSettings);
+          // Supabaseに保存（設定と目標を一緒に更新）
+          await updateUserPreferences(newSettings, currentState.goals);
           console.log('✅ Settings saved successfully');
         } catch (error) {
           console.error('❌ Error updating settings:', error);
@@ -506,8 +630,8 @@ export const useAppStore = create<AppState>()(
           // ローカル状態を即座に更新
           set({ goals: newGoals });
 
-          // IndexedDBに保存
-          await goalsDB.save(newGoals);
+          // Supabaseに保存（設定と目標を一緒に更新）
+          await updateUserPreferences(currentState.userSettings, newGoals);
           console.log('✅ Goals saved successfully');
         } catch (error) {
           console.error('❌ Error updating goals:', error);

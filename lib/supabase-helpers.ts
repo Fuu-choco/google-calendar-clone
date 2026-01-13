@@ -18,7 +18,7 @@ export async function fetchCalendarEvents() {
   }
 
   // Supabaseのデータ形式をアプリの形式に変換
-  return (data || []).map((event) => ({
+  return (data || []).map((event: any) => ({
     id: event.id,
     title: event.title,
     start: event.scheduled_start,
@@ -126,7 +126,7 @@ export async function fetchTodos() {
     return [];
   }
 
-  return (data || []).map((todo) => ({
+  return (data || []).map((todo: any) => ({
     id: todo.id,
     content: todo.content,
     completed: todo.completed,
@@ -266,7 +266,7 @@ export async function fetchTemplates() {
     return [];
   }
 
-  return (data || []).map((template) => ({
+  return (data || []).map((template: any) => ({
     id: template.id,
     name: template.name,
     duration: template.default_duration,
@@ -351,7 +351,7 @@ export async function fetchCategories() {
     return [];
   }
 
-  return (data || []).map((category) => ({
+  return (data || []).map((category: any) => ({
     id: category.id,
     name: category.name,
     color: category.color,
@@ -487,7 +487,7 @@ export async function fetchTaskHistory(days: number = 30): Promise<TaskHistory[]
     return [];
   }
 
-  return (data || []).map((h) => ({
+  return (data || []).map((h: any) => ({
     id: h.id,
     eventId: h.event_id,
     templateId: h.template_id,

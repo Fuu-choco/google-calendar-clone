@@ -16,10 +16,11 @@ import {
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
-import { Trash2, Edit2, Plus, Save } from 'lucide-react';
+import { Trash2, Edit2, Plus, Save, Download, Upload, Database } from 'lucide-react';
 import { toast } from 'sonner';
 import { TemplateEditModal } from './TemplateEditModal';
 import { Template } from '@/lib/types';
+import { migrateIndexedDBToSupabase, exportIndexedDBData, hasIndexedDBData } from '@/lib/data-migration';
 
 export function SettingsView() {
   const { userSettings, updateSettings, goals, updateGoals, templates, deleteTemplate, addTemplate, updateTemplate, categories, events } =
@@ -31,12 +32,19 @@ export function SettingsView() {
   const [hasChanges, setHasChanges] = useState(false);
   const [isTemplateModalOpen, setIsTemplateModalOpen] = useState(false);
   const [editingTemplate, setEditingTemplate] = useState<Template | undefined>(undefined);
+  const [isMigrating, setIsMigrating] = useState(false);
+  const [hasIndexedData, setHasIndexedData] = useState(false);
 
   useEffect(() => {
     setLocalSettings(userSettings);
     setLocalGoals(goals);
     setLocalCategories(categories);
   }, [userSettings, goals, categories]);
+
+  useEffect(() => {
+    // IndexedDBにデータがあるかチェック
+    hasIndexedDBData().then(setHasIndexedData);
+  }, []);
 
   const handleSettingsChange = (key: string, value: any) => {
     setLocalSettings((prev) => ({ ...prev, [key]: value }));
@@ -727,19 +735,78 @@ export function SettingsView() {
               <CardTitle>データ管理</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
+              <div className="p-3 bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-lg">
+                <p className="text-sm text-blue-900 dark:text-blue-100 font-medium mb-1">
+                  Supabaseへデータ移行
+                </p>
+                <p className="text-xs text-blue-700 dark:text-blue-300">
+                  現在のデータをSupabaseに移行します。既にSupabaseにあるデータは保持されます。
+                </p>
+              </div>
+              <Button
+                    variant="default"
+                    className="w-full"
+                    disabled={isMigrating}
+                    onClick={async () => {
+                      setIsMigrating(true);
+                      try {
+                        toast.loading('データを移行中...', { id: 'migration' });
+                        const result = await migrateIndexedDBToSupabase();
+
+                        if (result.success) {
+                          toast.success(
+                            `移行完了！\n` +
+                            `イベント: ${result.eventsCount}件\n` +
+                            `TODO: ${result.todosCount}件\n` +
+                            `テンプレート: ${result.templatesCount}件\n` +
+                            `カテゴリ: ${result.categoriesCount}件`,
+                            { id: 'migration', duration: 5000 }
+                          );
+                          setHasIndexedData(false);
+                          // データをリロード
+                          await useAppStore.getState().fetchData();
+                        } else {
+                          toast.error(
+                            `移行中にエラーが発生しました:\n${result.errors.join('\n')}`,
+                            { id: 'migration', duration: 7000 }
+                          );
+                        }
+                      } catch (error) {
+                        console.error('Migration error:', error);
+                        toast.error('データ移行に失敗しました', { id: 'migration' });
+                      } finally {
+                        setIsMigrating(false);
+                      }
+                    }}
+                  >
+                    <Database className="h-4 w-4 mr-2" />
+                    {isMigrating ? '移行中...' : 'IndexedDB → Supabase に移行'}
+                  </Button>
+                  <Separator />
               <Button
                 variant="outline"
                 className="w-full"
-                onClick={() => toast.info('この機能は準備中です')}
+                onClick={async () => {
+                  try {
+                    const data = await exportIndexedDBData();
+                    const blob = new Blob([data], { type: 'application/json' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `calendar-backup-${new Date().toISOString().split('T')[0]}.json`;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+                    toast.success('データをエクスポートしました');
+                  } catch (error) {
+                    console.error('Export error:', error);
+                    toast.error('データのエクスポートに失敗しました');
+                  }
+                }}
               >
-                学習データをリセット
-              </Button>
-              <Button
-                variant="outline"
-                className="w-full"
-                onClick={() => toast.info('この機能は準備中です')}
-              >
-                古いデータを削除
+                <Download className="h-4 w-4 mr-2" />
+                ローカルデータをエクスポート
               </Button>
             </CardContent>
           </Card>
