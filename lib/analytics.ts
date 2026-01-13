@@ -13,6 +13,7 @@ import {
   eachYearOfInterval,
   subYears
 } from 'date-fns';
+import { expandRecurringEvents } from './repeatEventGenerator';
 
 /**
  * カテゴリ別の時間配分を計算
@@ -161,11 +162,8 @@ export function calculateMonthlyAchievements(
     const monthEnd = endOfMonth(monthStart);
     const monthName = format(monthStart, 'M月');
 
-    // その月のイベントを取得
-    const monthEvents = events.filter((event) => {
-      const eventDate = parseISO(event.start);
-      return isWithinInterval(eventDate, { start: monthStart, end: monthEnd });
-    });
+    // その月のイベントを取得（繰り返しイベントを展開）
+    const monthEvents = expandRecurringEvents(events, monthStart, monthEnd);
 
     // 学習時間を計算
     const studyMinutes = monthEvents
@@ -224,11 +222,8 @@ export function calculateYearlyAchievements(
     const yearEnd = new Date(yearStart.getFullYear(), 11, 31, 23, 59, 59);
     const yearName = `${yearStart.getFullYear()}年`;
 
-    // その年のイベントを取得
-    const yearEvents = events.filter((event) => {
-      const eventDate = parseISO(event.start);
-      return isWithinInterval(eventDate, { start: yearStart, end: yearEnd });
-    });
+    // その年のイベントを取得（繰り返しイベントを展開）
+    const yearEvents = expandRecurringEvents(events, yearStart, yearEnd);
 
     // 学習時間を計算（年間目標は月間目標×12と仮定）
     const studyMinutes = yearEvents

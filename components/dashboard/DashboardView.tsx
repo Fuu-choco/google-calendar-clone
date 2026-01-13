@@ -17,6 +17,7 @@ import { Tooltip as RadixTooltip, TooltipContent, TooltipProvider, TooltipTrigge
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { calculateCategoryDistribution, calculateHourlyActivity } from '@/lib/analytics';
 import { startOfMonth, endOfMonth } from 'date-fns';
+import { expandRecurringEvents } from '@/lib/repeatEventGenerator';
 
 export function DashboardView() {
   const { events, categories } = useAppStore();
@@ -26,7 +27,9 @@ export function DashboardView() {
   const categoryData = useMemo(() => {
     const monthStart = startOfMonth(new Date());
     const monthEnd = endOfMonth(new Date());
-    const distribution = calculateCategoryDistribution(events, monthStart, monthEnd);
+    // 繰り返しイベントを展開してから集計
+    const expandedEvents = expandRecurringEvents(events, monthStart, monthEnd);
+    const distribution = calculateCategoryDistribution(expandedEvents, monthStart, monthEnd);
 
     // カテゴリの色を追加
     return distribution.map((item) => {
@@ -42,7 +45,9 @@ export function DashboardView() {
   const hourlyActivity = useMemo(() => {
     const monthStart = startOfMonth(new Date());
     const monthEnd = endOfMonth(new Date());
-    return calculateHourlyActivity(events, monthStart, monthEnd);
+    // 繰り返しイベントを展開してから集計
+    const expandedEvents = expandRecurringEvents(events, monthStart, monthEnd);
+    return calculateHourlyActivity(expandedEvents, monthStart, monthEnd);
   }, [events]);
   return (
     <div className="flex flex-col h-full bg-white dark:bg-slate-950">

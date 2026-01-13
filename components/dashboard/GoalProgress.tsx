@@ -4,6 +4,7 @@ import { useAppStore } from '@/lib/store';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { BookOpen, Briefcase, CheckSquare, Target } from 'lucide-react';
 import { parseISO, differenceInMinutes, startOfMonth, endOfMonth, isWithinInterval, startOfYear } from 'date-fns';
+import { expandRecurringEvents } from '@/lib/repeatEventGenerator';
 
 export function GoalProgress() {
   const { goals, events, todos, categories } = useAppStore();
@@ -15,29 +16,23 @@ export function GoalProgress() {
   const studyCategory = categories.find((c) => c.id === goals.studyCategoryId);
   const workCategory = categories.find((c) => c.id === goals.workCategoryId);
 
-  const monthEvents = events.filter((event) => {
-    const eventDate = parseISO(event.start);
-    return isWithinInterval(eventDate, { start: monthStart, end: monthEnd });
-  });
+  // 繰り返しイベントを展開してから集計
+  const expandedMonthEvents = expandRecurringEvents(events, monthStart, monthEnd);
+  const expandedYearEvents = expandRecurringEvents(events, yearStart, new Date());
 
-  const yearEvents = events.filter((event) => {
-    const eventDate = parseISO(event.start);
-    return isWithinInterval(eventDate, { start: yearStart, end: new Date() });
-  });
-
-  const studyMinutesMonth = monthEvents
+  const studyMinutesMonth = expandedMonthEvents
     .filter((e) => e.category === studyCategory?.name)
     .reduce((acc, e) => {
       return acc + differenceInMinutes(parseISO(e.end), parseISO(e.start));
     }, 0);
 
-  const studyMinutesTotal = yearEvents
+  const studyMinutesTotal = expandedYearEvents
     .filter((e) => e.category === studyCategory?.name)
     .reduce((acc, e) => {
       return acc + differenceInMinutes(parseISO(e.end), parseISO(e.start));
     }, 0);
 
-  const workMinutes = monthEvents
+  const workMinutes = expandedMonthEvents
     .filter((e) => e.category === workCategory?.name)
     .reduce((acc, e) => {
       return acc + differenceInMinutes(parseISO(e.end), parseISO(e.start));
