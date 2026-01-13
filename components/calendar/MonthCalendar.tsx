@@ -20,6 +20,7 @@ import {
 import { ja } from 'date-fns/locale';
 import { useAppStore } from '@/lib/store';
 import { cn } from '@/lib/utils';
+import { isEventOnDate } from '@/lib/repeatEventGenerator';
 import {
   Dialog,
   DialogContent,
@@ -105,8 +106,7 @@ export function MonthCalendar({ onEventClick, onDateClick }: MonthCalendarProps)
 
   const getEventsForDay = (date: Date) => {
     return events.filter((event) => {
-      const eventDate = parseISO(event.start);
-      return isSameDay(eventDate, date);
+      return isEventOnDate(event, date);
     });
   };
 

@@ -3,8 +3,9 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useAppStore } from '@/lib/store';
 import { CalendarEvent } from '@/lib/types';
-import { format, parseISO, isSameDay, addDays, subDays, addMinutes } from 'date-fns';
+import { format, parseISO, isSameDay, addDays, subDays, addMinutes, isToday } from 'date-fns';
 import { ja } from 'date-fns/locale';
+import { isEventOnDate } from '@/lib/repeatEventGenerator';
 import { ChevronLeft, ChevronRight, Sparkles, List } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -93,11 +94,31 @@ export function DayTimeline({ onEventClick, onTimeSlotClick, onTodoClick, onAuto
 
   const displayDate = selectedDate || currentDate;
 
+  // 現在時刻を管理（今日の場合のみ）
+  const [currentTime, setCurrentTime] = useState(new Date());
+
+  useEffect(() => {
+    // 今日の場合のみ1分ごとに更新
+    if (isToday(displayDate)) {
+      const timer = setInterval(() => {
+        setCurrentTime(new Date());
+      }, 60000); // 1分ごと
+      return () => clearInterval(timer);
+    }
+  }, [displayDate]);
+
+  // 現在時刻のライン位置を計算
+  const currentTimeLinePosition = useMemo(() => {
+    if (!isToday(displayDate)) return null;
+    const hours = currentTime.getHours();
+    const minutes = currentTime.getMinutes();
+    return hours * 60 + minutes; // 1時間 = 60px
+  }, [displayDate, currentTime]);
+
   // dayEventsをメモ化してパフォーマンスを改善
   const dayEvents = useMemo(() => {
     return events.filter((event) => {
-      const eventDate = parseISO(event.start);
-      return isSameDay(eventDate, displayDate);
+      return isEventOnDate(event, displayDate);
     });
   }, [events, displayDate]);
 
@@ -463,6 +484,27 @@ export function DayTimeline({ onEventClick, onTimeSlotClick, onTodoClick, onAuto
                   height: `${Math.abs(selectionEnd - selectionStart) + 15}px`,
                 }}
               />
+            )}
+
+            {/* 現在時刻のライン（今日の場合のみ） */}
+            {currentTimeLinePosition !== null && (
+              <div
+                className="absolute left-0 right-0 pointer-events-none z-30"
+                style={{
+                  top: `${currentTimeLinePosition}px`,
+                }}
+              >
+                <div className="flex items-center">
+                  <div className="w-14 flex items-center justify-end pr-2">
+                    <span className="text-[10px] font-bold text-red-500 dark:text-red-400 bg-white dark:bg-slate-950 px-1 rounded">
+                      {format(currentTime, 'HH:mm')}
+                    </span>
+                  </div>
+                  <div className="flex-1 h-[2px] bg-red-500 dark:bg-red-400 relative">
+                    <div className="absolute -left-1 -top-1 w-3 h-3 rounded-full bg-red-500 dark:bg-red-400" />
+                  </div>
+                </div>
+              </div>
             )}
 
             <div className="absolute left-16 right-0 top-0 bottom-0 pointer-events-none z-10">

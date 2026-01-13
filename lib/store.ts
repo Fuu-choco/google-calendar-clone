@@ -231,7 +231,7 @@ export const useAppStore = create<AppState>()(
     (set, get) => ({
       currentDate: new Date(),
       selectedDate: null,
-      viewMode: 'month',
+      viewMode: 'day',
       currentTab: 'calendar',
       events: [],
       todos: [],
@@ -279,14 +279,18 @@ export const useAppStore = create<AppState>()(
               longWorkAlertHours: userPrefs.long_work_alert_hours,
             } : defaultSettings;
 
+            // カテゴリIDを名前で検索
+            const studyCategory = categories.find(c => c.name === '学習');
+            const workCategory = categories.find(c => c.name === '勤務');
+
             const goals: Goal = userPrefs ? {
               studyHours: userPrefs.weekly_study_hours_goal * 4, // 週次 → 月次
               studyLongTermHours: 0,
               studyLongTermDeadline: '',
               workHours: userPrefs.weekly_work_hours_goal * 4, // 週次 → 月次
               todoCompletionRate: userPrefs.todo_completion_goal,
-              studyCategoryId: '1',
-              workCategoryId: '2',
+              studyCategoryId: studyCategory?.id || '1',
+              workCategoryId: workCategory?.id || '2',
             } : defaultGoals;
 
             // 繰り返しTodoを自動生成（30日先まで）

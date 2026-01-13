@@ -25,18 +25,36 @@ export function TodoList() {
   const displayDate = selectedDate || new Date();
   const selectedDateStr = format(displayDate, 'yyyy-MM-dd');
 
-  // Todoを日付ごとにグループ化
-  const todosByDate = todos.reduce((acc, todo) => {
+  // Todoを未完了と完了済みに分ける
+  const incompleteTodos = todos.filter(todo => !todo.completed);
+  const completedTodos = todos.filter(todo => todo.completed);
+
+  // 未完了Todoを日付ごとにグループ化
+  const incompleteTodosByDate = incompleteTodos.reduce((acc, todo) => {
     const dateKey = todo.dueDate;
     if (!acc[dateKey]) {
       acc[dateKey] = [];
     }
     acc[dateKey].push(todo);
     return acc;
-  }, {} as Record<string, typeof todos>);
+  }, {} as Record<string, typeof incompleteTodos>);
+
+  // 完了済みTodoを日付ごとにグループ化
+  const completedTodosByDate = completedTodos.reduce((acc, todo) => {
+    const dateKey = todo.dueDate;
+    if (!acc[dateKey]) {
+      acc[dateKey] = [];
+    }
+    acc[dateKey].push(todo);
+    return acc;
+  }, {} as Record<string, typeof completedTodos>);
 
   // 日付をソート（過去→未来）
-  const sortedDates = Object.keys(todosByDate).sort((a, b) => {
+  const sortedIncompleteDates = Object.keys(incompleteTodosByDate).sort((a, b) => {
+    return parseISO(a).getTime() - parseISO(b).getTime();
+  });
+
+  const sortedCompletedDates = Object.keys(completedTodosByDate).sort((a, b) => {
     return parseISO(a).getTime() - parseISO(b).getTime();
   });
 
@@ -135,86 +153,132 @@ export function TodoList() {
 
       <ScrollArea className="flex-1 p-4">
         <div className="space-y-6">
-          {sortedDates.length === 0 ? (
+          {todos.length === 0 ? (
             <p className="text-sm text-slate-500 dark:text-slate-400 text-center py-8">
               Todoはありません
             </p>
           ) : (
-            sortedDates.map((dateKey, index) => {
-              const dateTodos = todosByDate[dateKey];
-              const date = parseISO(dateKey);
-              const isPast = isBefore(date, today);
-              const isTodayDate = isToday(date);
-              const isTomorrowDate = isTomorrow(date);
+            <>
+              {/* 未完了Todoセクション */}
+              {sortedIncompleteDates.map((dateKey, index) => {
+                const dateTodos = incompleteTodosByDate[dateKey];
+                const date = parseISO(dateKey);
+                const isPast = isBefore(date, today);
+                const isTodayDate = isToday(date);
+                const isTomorrowDate = isTomorrow(date);
 
-              // 日付ラベルを決定
-              let dateLabel = format(date, 'M月d日(E)', { locale: ja });
-              if (isTodayDate) {
-                dateLabel = '今日のTodo';
-              } else if (isTomorrowDate) {
-                dateLabel = '明日のTodo';
-              } else if (isPast) {
-                dateLabel = `${format(date, 'M月d日(E)', { locale: ja })} (過去)`;
-              }
+                // 日付ラベルを決定
+                let dateLabel = format(date, 'M月d日(E)', { locale: ja });
+                if (isTodayDate) {
+                  dateLabel = '今日のTodo';
+                } else if (isTomorrowDate) {
+                  dateLabel = '明日のTodo';
+                } else if (isPast) {
+                  dateLabel = `${format(date, 'M月d日(E)', { locale: ja })} (過去)`;
+                }
 
-              // スタイルを決定
-              const headerColor = isPast
-                ? 'text-red-600 dark:text-red-400'
-                : isTodayDate
-                ? 'text-blue-600 dark:text-blue-400'
-                : 'text-slate-700 dark:text-slate-300';
+                // スタイルを決定
+                const headerColor = isPast
+                  ? 'text-red-600 dark:text-red-400'
+                  : isTodayDate
+                  ? 'text-blue-600 dark:text-blue-400'
+                  : 'text-slate-700 dark:text-slate-300';
 
-              const badgeColor = isPast
-                ? 'bg-red-100 dark:bg-red-950 text-red-700 dark:text-red-400'
-                : isTodayDate
-                ? 'bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-400'
-                : 'bg-slate-100 dark:bg-slate-900 text-slate-700 dark:text-slate-400';
+                const badgeColor = isPast
+                  ? 'bg-red-100 dark:bg-red-950 text-red-700 dark:text-red-400'
+                  : isTodayDate
+                  ? 'bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-400'
+                  : 'bg-slate-100 dark:bg-slate-900 text-slate-700 dark:text-slate-400';
 
-              const completedCount = dateTodos.filter(t => t.completed).length;
-              const totalCount = dateTodos.length;
-
-              return (
-                <div key={dateKey}>
-                  {index > 0 && <Separator />}
-                  <div>
-                    <h3 className={`text-sm font-semibold mb-3 flex items-center gap-2 ${headerColor}`}>
-                      {dateLabel}
-                      <span className={`text-xs px-2 py-0.5 rounded-full ${badgeColor}`}>
-                        {completedCount} / {totalCount}
-                      </span>
-                    </h3>
-                    <div className="space-y-2">
-                      {dateTodos
-                        .sort((a, b) => {
-                          // 未完了を上に、完了済みを下に
-                          if (a.completed === b.completed) return 0;
-                          return a.completed ? 1 : -1;
-                        })
-                        .map((todo) => (
-                        <TodoItem
-                          key={todo.id}
-                          todo={todo}
-                          onToggle={async () => {
-                            try {
-                              await toggleTodo(todo.id);
-                            } catch (error) {
-                              console.error('Todoの更新に失敗しました:', error);
-                            }
-                          }}
-                          onDelete={async () => {
-                            try {
-                              await deleteTodo(todo.id);
-                            } catch (error) {
-                              console.error('Todoの削除に失敗しました:', error);
-                            }
-                          }}
-                        />
-                      ))}
+                return (
+                  <div key={`incomplete-${dateKey}`}>
+                    {index > 0 && <Separator />}
+                    <div>
+                      <h3 className={`text-sm font-semibold mb-3 flex items-center gap-2 ${headerColor}`}>
+                        {dateLabel}
+                        <span className={`text-xs px-2 py-0.5 rounded-full ${badgeColor}`}>
+                          {dateTodos.length}件
+                        </span>
+                      </h3>
+                      <div className="space-y-2">
+                        {dateTodos.map((todo) => (
+                          <TodoItem
+                            key={todo.id}
+                            todo={todo}
+                            onToggle={async () => {
+                              try {
+                                await toggleTodo(todo.id);
+                              } catch (error) {
+                                console.error('Todoの更新に失敗しました:', error);
+                              }
+                            }}
+                            onDelete={async () => {
+                              try {
+                                await deleteTodo(todo.id);
+                              } catch (error) {
+                                console.error('Todoの削除に失敗しました:', error);
+                              }
+                            }}
+                          />
+                        ))}
+                      </div>
                     </div>
                   </div>
-                </div>
-              );
-            })
+                );
+              })}
+
+              {/* 完了済みTodoセクション */}
+              {completedTodos.length > 0 && (
+                <>
+                  {sortedIncompleteDates.length > 0 && <Separator className="my-6" />}
+                  <div className="pt-2">
+                    <h3 className="text-sm font-semibold mb-3 flex items-center gap-2 text-slate-500 dark:text-slate-400">
+                      完了済み
+                      <span className="text-xs px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-900 text-slate-600 dark:text-slate-400">
+                        {completedTodos.length}件
+                      </span>
+                    </h3>
+                    <div className="space-y-4">
+                      {sortedCompletedDates.map((dateKey) => {
+                        const dateTodos = completedTodosByDate[dateKey];
+                        const date = parseISO(dateKey);
+                        const dateLabel = format(date, 'M月d日(E)', { locale: ja });
+
+                        return (
+                          <div key={`completed-${dateKey}`}>
+                            <h4 className="text-xs text-slate-400 dark:text-slate-500 mb-2 ml-1">
+                              {dateLabel}
+                            </h4>
+                            <div className="space-y-2">
+                              {dateTodos.map((todo) => (
+                                <TodoItem
+                                  key={todo.id}
+                                  todo={todo}
+                                  onToggle={async () => {
+                                    try {
+                                      await toggleTodo(todo.id);
+                                    } catch (error) {
+                                      console.error('Todoの更新に失敗しました:', error);
+                                    }
+                                  }}
+                                  onDelete={async () => {
+                                    try {
+                                      await deleteTodo(todo.id);
+                                    } catch (error) {
+                                      console.error('Todoの削除に失敗しました:', error);
+                                    }
+                                  }}
+                                />
+                              ))}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </>
+              )}
+            </>
           )}
         </div>
       </ScrollArea>

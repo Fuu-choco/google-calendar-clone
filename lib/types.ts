@@ -35,6 +35,8 @@ export interface CalendarEvent {
   repeatDate?: number;
   showInMonthView?: boolean;
   status?: 'completed' | 'pending' | 'cancelled';
+  _originalId?: string; // 繰り返しイベントの元のID
+  _isRecurring?: boolean; // 繰り返しイベントであることを示す
 }
 
 export interface Todo {
