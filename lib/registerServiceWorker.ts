@@ -33,6 +33,11 @@ export function registerServiceWorker() {
 
       console.log('[PWA] Service Worker registered successfully:', registration.scope);
 
+      // 即座に更新をチェック（新しいバージョンがあれば取得）
+      registration.update().catch((err) => {
+        console.log('[PWA] Update check failed:', err);
+      });
+
       // 更新チェック
       registration.addEventListener('updatefound', () => {
         const newWorker = registration.installing;
@@ -41,12 +46,12 @@ export function registerServiceWorker() {
         newWorker?.addEventListener('statechange', () => {
           if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
             // 新しいService Workerがインストールされた
-            console.log('[PWA] New content available, please refresh');
+            console.log('[PWA] New content available, reloading automatically...');
 
-            // ユーザーに更新を通知（オプション）
-            if (window.confirm('新しいバージョンが利用可能です。更新しますか？')) {
+            // 自動的にリロード（データ移行のため）
+            setTimeout(() => {
               window.location.reload();
-            }
+            }, 1000); // 1秒待ってからリロード
           }
         });
       });
