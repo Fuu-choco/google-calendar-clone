@@ -113,6 +113,7 @@ export function TodoList() {
         </div>
 
         <div className="space-y-2">
+          {/* 1段目: 日付選択、繰り返し設定、追加ボタン */}
           <div className="flex gap-2">
             <Input
               type="date"
@@ -121,17 +122,10 @@ export function TodoList() {
                 const newDate = parseISO(e.target.value);
                 setSelectedDate(newDate);
               }}
-              className="w-40"
-            />
-            <Input
-              placeholder="新しいTodoを追加..."
-              value={newTodoText}
-              onChange={(e) => setNewTodoText(e.target.value)}
-              onKeyPress={handleKeyPress}
-              className="flex-1"
+              className="flex-1 md:w-40 md:flex-initial"
             />
             <Select value={repeatType} onValueChange={(value: RepeatType) => setRepeatType(value)}>
-              <SelectTrigger className="w-32">
+              <SelectTrigger className="flex-1 md:w-32 md:flex-initial">
                 <div className="flex items-center gap-1">
                   <Repeat className="h-3 w-3" />
                   <SelectValue placeholder="繰り返しなし" />
@@ -144,9 +138,20 @@ export function TodoList() {
                 <SelectItem value="monthly">毎月</SelectItem>
               </SelectContent>
             </Select>
-            <Button onClick={handleAddTodo} size="icon">
+            <Button onClick={handleAddTodo} size="icon" className="shrink-0">
               <Plus className="h-4 w-4" />
             </Button>
+          </div>
+
+          {/* 2段目: テキスト入力（全幅） */}
+          <div className="w-full">
+            <Input
+              placeholder="新しいTodoを追加..."
+              value={newTodoText}
+              onChange={(e) => setNewTodoText(e.target.value)}
+              onKeyPress={handleKeyPress}
+              className="w-full"
+            />
           </div>
         </div>
       </div>
