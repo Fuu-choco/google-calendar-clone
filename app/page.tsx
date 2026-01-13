@@ -17,9 +17,11 @@ import {
   cancelAllNotifications,
 } from '@/lib/notifications';
 import { registerServiceWorker } from '@/lib/registerServiceWorker';
+import { migrateIndexedDBToSupabase } from '@/lib/data-migration';
+import { toast } from 'sonner';
 
 export default function Home() {
-  const { currentTab, fetchData, isLoading, events, addNotification, currentDate } = useAppStore();
+  const { currentTab, fetchData, isLoading, events, addNotification, currentDate, setCurrentTab } = useAppStore();
   const [showAddEvent, setShowAddEvent] = useState(false);
   const [showMobileSidebar, setShowMobileSidebar] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
@@ -30,6 +32,62 @@ export default function Home() {
     fetchData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // URLパラメータで自動移行機能
+  useEffect(() => {
+    const checkAutoMigration = async () => {
+      if (typeof window === 'undefined') return;
+
+      const urlParams = new URLSearchParams(window.location.search);
+      const shouldMigrate = urlParams.get('migrate');
+      const shouldExport = urlParams.get('export');
+
+      if (shouldMigrate === 'true') {
+        console.log('🚀 自動移行を開始します...');
+        toast.loading('データを移行中...', { id: 'auto-migration' });
+
+        try {
+          const result = await migrateIndexedDBToSupabase();
+
+          if (result.success) {
+            toast.success(
+              `移行完了！\n` +
+              `イベント: ${result.eventsCount}件\n` +
+              `TODO: ${result.todosCount}件\n` +
+              `テンプレート: ${result.templatesCount}件\n` +
+              `カテゴリ: ${result.categoriesCount}件`,
+              { id: 'auto-migration', duration: 10000 }
+            );
+
+            // 設定画面を開く
+            setCurrentTab('settings');
+
+            // データをリロード
+            await fetchData();
+
+            // URLパラメータを削除
+            window.history.replaceState({}, '', window.location.pathname);
+          } else {
+            toast.error(
+              `移行中にエラーが発生しました:\n${result.errors.join('\n')}`,
+              { id: 'auto-migration', duration: 10000 }
+            );
+          }
+        } catch (error) {
+          console.error('Auto-migration error:', error);
+          toast.error('データ移行に失敗しました', { id: 'auto-migration' });
+        }
+      }
+
+      if (shouldExport === 'true') {
+        console.log('📦 自動エクスポートを開始します...');
+        // エクスポート機能は後で実装
+        toast.info('エクスポート機能を実行中...', { duration: 3000 });
+      }
+    };
+
+    checkAutoMigration();
+  }, [fetchData, setCurrentTab]);
 
   // 通知権限は設定画面でユーザーが明示的に許可する形にする
   // useEffect(() => {

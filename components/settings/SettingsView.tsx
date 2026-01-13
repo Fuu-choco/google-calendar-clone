@@ -734,90 +734,123 @@ export function SettingsView() {
             <CardHeader>
               <CardTitle>データ管理</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="p-3 bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-lg">
-                <p className="text-sm text-blue-900 dark:text-blue-100 font-medium mb-1">
-                  Supabaseへデータ移行
-                </p>
-                <p className="text-xs text-blue-700 dark:text-blue-300">
-                  現在のデータをSupabaseに移行します。既にSupabaseにあるデータは保持されます。
+            <CardContent className="space-y-4">
+              {/* 重要な説明セクション */}
+              <div className="p-4 bg-amber-50 dark:bg-amber-950 border-2 border-amber-300 dark:border-amber-700 rounded-lg space-y-2">
+                <div className="flex items-start gap-2">
+                  <Database className="h-5 w-5 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
+                  <div className="space-y-1">
+                    <p className="text-sm font-bold text-amber-900 dark:text-amber-100">
+                      📱 iPhoneのデータをクラウドに保存
+                    </p>
+                    <p className="text-xs text-amber-800 dark:text-amber-200 leading-relaxed">
+                      現在、スケジュール・Todo・設定などすべてのデータがiPhoneのブラウザ内のみに保存されています。Supabaseに移行すると、どのデバイスからもアクセスできるようになり、データが失われる心配もありません。
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Supabase移行ボタン - 目立つデザイン */}
+              <div className="space-y-2">
+                <Button
+                  variant="default"
+                  size="lg"
+                  className="w-full h-auto py-4 text-base font-bold bg-blue-600 hover:bg-blue-700 dark:bg-blue-600 dark:hover:bg-blue-700"
+                  disabled={isMigrating}
+                  onClick={async () => {
+                    setIsMigrating(true);
+                    try {
+                      toast.loading('データを移行中...', { id: 'migration' });
+                      const result = await migrateIndexedDBToSupabase();
+
+                      if (result.success) {
+                        toast.success(
+                          `移行完了！\n` +
+                          `イベント: ${result.eventsCount}件\n` +
+                          `TODO: ${result.todosCount}件\n` +
+                          `テンプレート: ${result.templatesCount}件\n` +
+                          `カテゴリ: ${result.categoriesCount}件`,
+                          { id: 'migration', duration: 5000 }
+                        );
+                        setHasIndexedData(false);
+                        // データをリロード
+                        await useAppStore.getState().fetchData();
+                      } else {
+                        toast.error(
+                          `移行中にエラーが発生しました:\n${result.errors.join('\n')}`,
+                          { id: 'migration', duration: 7000 }
+                        );
+                      }
+                    } catch (error) {
+                      console.error('Migration error:', error);
+                      toast.error('データ移行に失敗しました', { id: 'migration' });
+                    } finally {
+                      setIsMigrating(false);
+                    }
+                  }}
+                >
+                  <div className="flex flex-col items-center gap-1 w-full">
+                    <div className="flex items-center gap-2">
+                      <Database className="h-5 w-5" />
+                      <span>{isMigrating ? '移行中...' : 'Supabaseにデータを移行'}</span>
+                    </div>
+                    {!isMigrating && (
+                      <span className="text-xs font-normal opacity-90">
+                        スケジュール・Todo・テンプレート・設定すべてを移行
+                      </span>
+                    )}
+                  </div>
+                </Button>
+                <p className="text-xs text-center text-slate-500 dark:text-slate-400">
+                  ※移行後もローカルのデータは保持されます
                 </p>
               </div>
-              <Button
-                    variant="default"
-                    className="w-full"
-                    disabled={isMigrating}
-                    onClick={async () => {
-                      setIsMigrating(true);
-                      try {
-                        toast.loading('データを移行中...', { id: 'migration' });
-                        const result = await migrateIndexedDBToSupabase();
 
-                        if (result.success) {
-                          toast.success(
-                            `移行完了！\n` +
-                            `イベント: ${result.eventsCount}件\n` +
-                            `TODO: ${result.todosCount}件\n` +
-                            `テンプレート: ${result.templatesCount}件\n` +
-                            `カテゴリ: ${result.categoriesCount}件`,
-                            { id: 'migration', duration: 5000 }
-                          );
-                          setHasIndexedData(false);
-                          // データをリロード
-                          await useAppStore.getState().fetchData();
-                        } else {
-                          toast.error(
-                            `移行中にエラーが発生しました:\n${result.errors.join('\n')}`,
-                            { id: 'migration', duration: 7000 }
-                          );
-                        }
-                      } catch (error) {
-                        console.error('Migration error:', error);
-                        toast.error('データ移行に失敗しました', { id: 'migration' });
-                      } finally {
-                        setIsMigrating(false);
-                      }
-                    }}
-                  >
-                    <Database className="h-4 w-4 mr-2" />
-                    {isMigrating ? '移行中...' : 'IndexedDB → Supabase に移行'}
-                  </Button>
-                  <Separator />
-              <Button
-                variant="outline"
-                className="w-full"
-                onClick={async () => {
-                  try {
-                    const data = await exportIndexedDBData();
-                    const blob = new Blob([data], { type: 'application/json' });
-                    const url = URL.createObjectURL(blob);
-                    const a = document.createElement('a');
-                    a.href = url;
-                    a.download = `calendar-backup-${new Date().toISOString().split('T')[0]}.json`;
-                    document.body.appendChild(a);
-                    a.click();
-                    document.body.removeChild(a);
-                    URL.revokeObjectURL(url);
-                    toast.success('データをエクスポートしました');
-                  } catch (error) {
-                    console.error('Export error:', error);
-                    toast.error('データのエクスポートに失敗しました');
-                  }
-                }}
-              >
-                <Download className="h-4 w-4 mr-2" />
-                ローカルデータをエクスポート
-              </Button>
-              <Button
-                variant="outline"
-                className="w-full"
-                onClick={() => {
-                  window.location.reload();
-                }}
-              >
-                <RefreshCw className="h-4 w-4 mr-2" />
-                ページを再読み込み
-              </Button>
+              <Separator />
+
+              {/* その他の管理機能 */}
+              <div className="space-y-2">
+                <h4 className="text-sm font-semibold text-slate-700 dark:text-slate-300">
+                  その他の機能
+                </h4>
+
+                <Button
+                  variant="outline"
+                  className="w-full h-12 justify-start"
+                  onClick={() => {
+                    window.location.reload();
+                  }}
+                >
+                  <RefreshCw className="h-4 w-4 mr-2" />
+                  ページを再読み込み
+                </Button>
+
+                <Button
+                  variant="outline"
+                  className="w-full h-12 justify-start"
+                  onClick={async () => {
+                    try {
+                      const data = await exportIndexedDBData();
+                      const blob = new Blob([data], { type: 'application/json' });
+                      const url = URL.createObjectURL(blob);
+                      const a = document.createElement('a');
+                      a.href = url;
+                      a.download = `calendar-backup-${new Date().toISOString().split('T')[0]}.json`;
+                      document.body.appendChild(a);
+                      a.click();
+                      document.body.removeChild(a);
+                      URL.revokeObjectURL(url);
+                      toast.success('データをエクスポートしました');
+                    } catch (error) {
+                      console.error('Export error:', error);
+                      toast.error('データのエクスポートに失敗しました');
+                    }
+                  }}
+                >
+                  <Download className="h-4 w-4 mr-2" />
+                  ローカルデータをバックアップ
+                </Button>
+              </div>
             </CardContent>
           </Card>
         </div>
