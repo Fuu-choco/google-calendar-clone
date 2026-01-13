@@ -67,7 +67,8 @@ export function MonthCalendar({ onEventClick, onDateClick }: MonthCalendarProps)
     const targetDateStr = over.id as string;
     const targetEvent = events.find(e => e.id === eventId);
 
-    if (!targetEvent || targetEvent.isFixed) {
+    if (!targetEvent || targetEvent.isFixed || targetEvent._isRecurring || (targetEvent.repeat && targetEvent.repeat !== 'none')) {
+      // 固定イベント、繰り返しイベント、繰り返しイベントのインスタンスはドラッグ不可
       setDraggedEvent(null);
       return;
     }
@@ -297,7 +298,8 @@ interface DraggableEventProps {
 function DraggableEvent({ event, priorityColors, onEventClick, isDragging }: DraggableEventProps) {
   const { attributes, listeners, setNodeRef, transform } = useDraggable({
     id: event.id,
-    disabled: event.isFixed || event._isRecurring, // 繰り返しイベントのインスタンスはドラッグ不可
+    // 固定イベント、繰り返しイベント、繰り返しイベントのインスタンスはドラッグ不可
+    disabled: event.isFixed || event._isRecurring || (event.repeat && event.repeat !== 'none'),
   });
 
   const style = transform

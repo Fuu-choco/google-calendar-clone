@@ -148,9 +148,12 @@ export function DayTimeline({ onEventClick, onTimeSlotClick, onTodoClick, onAuto
   const handleDragEnd = useCallback((event: DragEndEvent) => {
     const { active, delta } = event;
     const eventId = active.id as string;
-    const targetEvent = events.find(e => e.id === eventId);
 
-    if (!targetEvent || targetEvent.isFixed) {
+    // dayEventsから探す（展開されたイベントを含む）
+    const targetEvent = dayEvents.find(e => e.id === eventId);
+
+    if (!targetEvent || targetEvent.isFixed || targetEvent._isRecurring || (targetEvent.repeat && targetEvent.repeat !== 'none')) {
+      // 固定イベント、繰り返しイベント、繰り返しイベントのインスタンスはドラッグ不可
       setDraggedEvent(null);
       return;
     }
@@ -174,7 +177,7 @@ export function DayTimeline({ onEventClick, onTimeSlotClick, onTodoClick, onAuto
 
     toast.success('タスクの時間を更新しました');
     setDraggedEvent(null);
-  }, [events]);
+  }, [dayEvents, updateEvent]);
 
   const handlers = useSwipeable({
     onSwipedLeft: handleNextDay,
@@ -535,7 +538,8 @@ interface DraggableTaskCardProps {
 function DraggableTaskCard({ event, position, isDragging, onClick }: DraggableTaskCardProps) {
   const { attributes, listeners, setNodeRef, transform } = useDraggable({
     id: event.id,
-    disabled: event.isFixed || event._isRecurring, // 繰り返しイベントのインスタンスはドラッグ不可
+    // 固定イベント、繰り返しイベント、繰り返しイベントのインスタンスはドラッグ不可
+    disabled: event.isFixed || event._isRecurring || (event.repeat && event.repeat !== 'none'),
   });
 
   const style = transform
