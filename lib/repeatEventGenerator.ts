@@ -33,8 +33,9 @@ export function expandRecurringEvents(
 
     // 開始日が範囲より前の場合、範囲の開始まで進める
     while (isBefore(currentDate, startDate)) {
-      currentDate = getNextOccurrence(currentDate, event.repeat, event.repeatDays, event.repeatDate);
-      if (!currentDate) break;
+      const nextDate = getNextOccurrence(currentDate, event.repeat, event.repeatDays, event.repeatDate);
+      if (!nextDate) break;
+      currentDate = nextDate;
     }
 
     // 範囲内のすべての繰り返しを生成（最大100回まで）
@@ -53,7 +54,9 @@ export function expandRecurringEvents(
         _isRecurring: true, // 繰り返しイベントであることを示す
       } as CalendarEvent);
 
-      currentDate = getNextOccurrence(currentDate, event.repeat, event.repeatDays, event.repeatDate);
+      const nextDate = getNextOccurrence(currentDate, event.repeat, event.repeatDays, event.repeatDate);
+      if (!nextDate) break;
+      currentDate = nextDate;
       count++;
     }
   }
