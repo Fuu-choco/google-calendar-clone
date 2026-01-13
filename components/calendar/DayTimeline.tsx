@@ -535,7 +535,7 @@ interface DraggableTaskCardProps {
 function DraggableTaskCard({ event, position, isDragging, onClick }: DraggableTaskCardProps) {
   const { attributes, listeners, setNodeRef, transform } = useDraggable({
     id: event.id,
-    disabled: event.isFixed,
+    disabled: event.isFixed || event._isRecurring, // 繰り返しイベントのインスタンスはドラッグ不可
   });
 
   const style = transform
