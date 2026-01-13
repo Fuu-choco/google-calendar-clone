@@ -280,8 +280,8 @@ export const useAppStore = create<AppState>()(
             } : defaultSettings;
 
             // カテゴリIDを名前で検索
-            const studyCategory = categories.find(c => c.name === '学習');
-            const workCategory = categories.find(c => c.name === '勤務');
+            const studyCategory = categories.find((c: CategoryItem) => c.name === '学習');
+            const workCategory = categories.find((c: CategoryItem) => c.name === '勤務');
 
             const goals: Goal = userPrefs ? {
               studyHours: userPrefs.weekly_study_hours_goal * 4, // 週次 → 月次
