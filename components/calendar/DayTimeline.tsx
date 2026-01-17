@@ -40,6 +40,8 @@ export function DayTimeline({ onEventClick, onTimeSlotClick, onTodoClick, onAuto
   const [isLongPressActivated, setIsLongPressActivated] = useState(false);
   const [hasMoved, setHasMoved] = useState(false);
   const [lastVibrateMinute, setLastVibrateMinute] = useState<number | null>(null);
+  const scrollAreaRef = useRef<HTMLDivElement>(null);
+  const hasScrolledToCurrentTime = useRef<boolean>(false);
 
   // 型安全なバイブレーション関数
   const safeVibrate = useCallback((duration: number): boolean => {
@@ -84,6 +86,34 @@ export function DayTimeline({ onEventClick, onTimeSlotClick, onTodoClick, onAuto
       }
     };
   }, [longPressTimer]);
+
+  // 初回マウント時または日付変更時に現在時刻にスクロール
+  useEffect(() => {
+    if (!scrollAreaRef.current) return;
+
+    // ScrollAreaのViewportを取得（Radix UIの内部構造）
+    const viewport = scrollAreaRef.current.querySelector('[data-radix-scroll-area-viewport]') as HTMLDivElement;
+    if (!viewport) return;
+
+    // 今日の日付の場合のみ現在時刻にスクロール
+    if (isToday(displayDate)) {
+      const now = new Date();
+      const hours = now.getHours();
+      const minutes = now.getMinutes();
+      const scrollPosition = hours * 60 + minutes - 30; // 30分前を表示（現在時刻が中央付近に来るように）
+
+      // 少し遅延させてDOMが確実に描画された後にスクロール
+      setTimeout(() => {
+        viewport.scrollTop = Math.max(0, scrollPosition);
+        hasScrolledToCurrentTime.current = true;
+      }, 100);
+    } else {
+      // 今日以外の日付の場合は朝9時の位置にスクロール
+      setTimeout(() => {
+        viewport.scrollTop = 9 * 60; // 9:00
+      }, 100);
+    }
+  }, [displayDate]);
 
   const sensors = useSensors(
     useSensor(MouseSensor, {
@@ -449,7 +479,7 @@ export function DayTimeline({ onEventClick, onTimeSlotClick, onTodoClick, onAuto
           </div>
         </div>
 
-        <ScrollArea className="flex-1" {...((selecting || isLongPressActivated) ? {} : handlers)}>
+        <ScrollArea ref={scrollAreaRef} className="flex-1" {...((selecting || isLongPressActivated) ? {} : handlers)}>
           <div
             className="relative"
             style={{
