@@ -207,10 +207,47 @@ export async function fetchUserPreferences() {
   const { data, error } = await supabase
     .from('user_preferences')
     .select('*')
+    .limit(1)
     .single();
 
   if (error) {
     console.error('Error fetching user preferences:', error);
+
+    // データが存在しない場合は初期データを作成
+    if (error.code === 'PGRST116') {
+      console.log('Creating initial user preferences...');
+      const { data: newData, error: insertError } = await supabase
+        .from('user_preferences')
+        .insert({
+          concentration_type: 'morning',
+          work_duration_pref: 50,
+          break_duration_pref: 10,
+          ideal_wake_time: '06:00',
+          ideal_sleep_time: '23:00',
+          notifications_enabled: true,
+          task_reminder_default_minutes: 5,
+          morning_schedule_check_enabled: true,
+          morning_schedule_check_time: '06:00',
+          sleep_reminder_enabled: true,
+          sleep_reminder_time: '23:00',
+          long_work_alert_enabled: true,
+          long_work_alert_hours: 2,
+          todo_reminder_enabled: true,
+          weekly_study_hours_goal: 20,
+          weekly_work_hours_goal: 40,
+          todo_completion_goal: 90,
+        })
+        .select()
+        .single();
+
+      if (insertError) {
+        console.error('Error creating user preferences:', insertError);
+        return null;
+      }
+
+      return newData;
+    }
+
     return null;
   }
 
@@ -240,19 +277,43 @@ export async function updateUserPreferences(settings: any, goals: any) {
     updated_at: new Date().toISOString(),
   };
 
-  const { data, error } = await supabase
+  // まず既存のレコードを取得
+  const { data: existing } = await supabase
     .from('user_preferences')
-    .update(dbSettings)
-    .eq('id', (await supabase.from('user_preferences').select('id').single()).data?.id)
-    .select()
+    .select('id')
+    .limit(1)
     .single();
 
-  if (error) {
-    console.error('Error updating user preferences:', error);
-    throw error;
-  }
+  if (existing) {
+    // レコードが存在する場合は更新
+    const { data, error } = await supabase
+      .from('user_preferences')
+      .update(dbSettings)
+      .eq('id', existing.id)
+      .select()
+      .single();
 
-  return data;
+    if (error) {
+      console.error('Error updating user preferences:', error);
+      throw error;
+    }
+
+    return data;
+  } else {
+    // レコードが存在しない場合は新規作成
+    const { data, error } = await supabase
+      .from('user_preferences')
+      .insert(dbSettings)
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Error creating user preferences:', error);
+      throw error;
+    }
+
+    return data;
+  }
 }
 
 // ============================================================
