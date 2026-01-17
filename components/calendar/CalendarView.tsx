@@ -1,17 +1,18 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef, useCallback } from 'react';
 import { useAppStore } from '@/lib/store';
 import { CalendarEvent } from '@/lib/types';
 import { MonthCalendar } from './MonthCalendar';
 import { DayTimeline } from './DayTimeline';
 import { TaskEditModal } from './TaskEditModal';
 import { Button } from '@/components/ui/button';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight, RefreshCw } from 'lucide-react';
 import { format, addMonths, subMonths } from 'date-fns';
 import { ja } from 'date-fns/locale';
 import { generateDaySchedule } from '@/lib/scheduleGenerator';
 import { useToast } from '@/hooks/use-toast';
+import { toast as sonnerToast } from 'sonner';
 
 interface CalendarViewProps {
   onEventClick?: (event: CalendarEvent) => void;
@@ -28,11 +29,19 @@ export function CalendarView({ onEventClick }: CalendarViewProps) {
     events,
     templates,
     userSettings,
-    addEvent
+    addEvent,
+    fetchData
   } = useAppStore();
   const [showEditModal, setShowEditModal] = useState(false);
   const [defaultTime, setDefaultTime] = useState<{ start: Date; end: Date } | null>(null);
   const { toast } = useToast();
+
+  // プルトゥリフレッシュ用の状態
+  const [pullDistance, setPullDistance] = useState(0);
+  const [isPulling, setIsPulling] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const touchStartY = useRef(0);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   const displayDate = selectedDate || currentDate;
 
@@ -116,6 +125,60 @@ export function CalendarView({ onEventClick }: CalendarViewProps) {
     }
   };
 
+  // プルトゥリフレッシュハンドラー
+  const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    const container = scrollContainerRef.current;
+    if (!container || isRefreshing) return;
+
+    // 一番上にスクロールしている場合のみプルを有効化
+    if (container.scrollTop === 0) {
+      touchStartY.current = e.touches[0].clientY;
+      setIsPulling(true);
+    }
+  }, [isRefreshing]);
+
+  const handleTouchMove = useCallback((e: React.TouchEvent) => {
+    if (!isPulling || isRefreshing) return;
+
+    const currentY = e.touches[0].clientY;
+    const distance = currentY - touchStartY.current;
+
+    // 下方向にドラッグしている場合のみ
+    if (distance > 0) {
+      setPullDistance(Math.min(distance, 100)); // 最大100px
+
+      // ブラウザのデフォルト動作を防ぐ
+      if (distance > 5) {
+        e.preventDefault();
+      }
+    }
+  }, [isPulling, isRefreshing]);
+
+  const handleTouchEnd = useCallback(async () => {
+    if (!isPulling) return;
+
+    setIsPulling(false);
+
+    // 50px以上引っ張ったらリフレッシュ
+    if (pullDistance > 50 && !isRefreshing) {
+      setIsRefreshing(true);
+      sonnerToast.loading('データを更新中...', { id: 'pull-refresh' });
+
+      try {
+        await fetchData();
+        sonnerToast.success('データを更新しました', { id: 'pull-refresh' });
+      } catch (error) {
+        console.error('リフレッシュエラー:', error);
+        sonnerToast.error('更新に失敗しました', { id: 'pull-refresh' });
+      } finally {
+        setIsRefreshing(false);
+        setPullDistance(0);
+      }
+    } else {
+      setPullDistance(0);
+    }
+  }, [isPulling, pullDistance, isRefreshing, fetchData]);
+
   return (
     <div className="flex flex-col h-full">
       {/* 月表示ヘッダー（月表示のみ） */}
@@ -154,8 +217,26 @@ export function CalendarView({ onEventClick }: CalendarViewProps) {
         </div>
       )}
 
+      {/* プルトゥリフレッシュインジケーター */}
+      {pullDistance > 0 && (
+        <div
+          className="flex items-center justify-center py-2 bg-slate-100 dark:bg-slate-800 transition-all"
+          style={{ height: `${Math.min(pullDistance, 60)}px`, opacity: Math.min(pullDistance / 50, 1) }}
+        >
+          <RefreshCw
+            className={`h-5 w-5 text-slate-600 dark:text-slate-400 ${isRefreshing ? 'animate-spin' : ''}`}
+            style={{ transform: `rotate(${pullDistance * 3.6}deg)` }}
+          />
+        </div>
+      )}
 
-      <div className="flex-1 overflow-hidden">
+      <div
+        ref={scrollContainerRef}
+        className="flex-1 overflow-auto"
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+      >
         {viewMode === 'month' ? (
           <MonthCalendar
             onEventClick={handleEventClick}
