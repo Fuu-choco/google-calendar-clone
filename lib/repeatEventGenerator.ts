@@ -29,30 +29,36 @@ export function expandRecurringEvents(
     }
 
     // 繰り返しありの場合
+    // イベント開始日と範囲開始日の遅い方から開始（過去には繰り返さない）
+    const recurringStartDate = isAfter(eventStart, startDate) ? eventStart : startDate;
     let currentDate = new Date(eventStart);
 
-    // 開始日が範囲より前の場合、範囲の開始まで進める
-    while (isBefore(currentDate, startDate)) {
+    // イベント開始日から範囲開始日まで進める（範囲開始日がイベント開始日より後の場合のみ）
+    while (isBefore(currentDate, recurringStartDate)) {
       const nextDate = getNextOccurrence(currentDate, event.repeat, event.repeatDays, event.repeatDate);
       if (!nextDate) break;
       currentDate = nextDate;
     }
 
     // 範囲内のすべての繰り返しを生成（最大100回まで）
+    // ただし、イベント開始日より前の日付には生成しない
     let count = 0;
     const maxOccurrences = 100;
 
     while (currentDate && !isAfter(currentDate, endDate) && count < maxOccurrences) {
-      const newEnd = new Date(currentDate.getTime() + duration);
+      // イベント開始日以降のみ繰り返しを生成
+      if (!isBefore(currentDate, eventStart)) {
+        const newEnd = new Date(currentDate.getTime() + duration);
 
-      expandedEvents.push({
-        ...event,
-        id: `${event.id}-${currentDate.toISOString()}`,
-        start: currentDate.toISOString(),
-        end: newEnd.toISOString(),
-        _originalId: event.id, // 元のイベントIDを保持
-        _isRecurring: true, // 繰り返しイベントであることを示す
-      } as CalendarEvent);
+        expandedEvents.push({
+          ...event,
+          id: `${event.id}-${currentDate.toISOString()}`,
+          start: currentDate.toISOString(),
+          end: newEnd.toISOString(),
+          _originalId: event.id, // 元のイベントIDを保持
+          _isRecurring: true, // 繰り返しイベントであることを示す
+        } as CalendarEvent);
+      }
 
       const nextDate = getNextOccurrence(currentDate, event.repeat, event.repeatDays, event.repeatDate);
       if (!nextDate) break;
