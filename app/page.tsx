@@ -21,15 +21,33 @@ import { migrateIndexedDBToSupabase } from '@/lib/data-migration';
 import { toast } from 'sonner';
 
 export default function Home() {
-  const { currentTab, fetchData, isLoading, events, addNotification, currentDate, setCurrentTab } = useAppStore();
+  const {
+    currentTab,
+    fetchData,
+    isLoading,
+    events,
+    addNotification,
+    currentDate,
+    setCurrentTab,
+    setViewMode,
+    setCurrentDate,
+    setSelectedDate
+  } = useAppStore();
   const [showAddEvent, setShowAddEvent] = useState(false);
   const [showMobileSidebar, setShowMobileSidebar] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
   const scheduledNotifications = useRef<Map<string, number[]>>(new Map());
 
-  // IndexedDBからデータを取得（初回マウント時のみ）
+  // 初回マウント時：データ取得とビューのリセット
   useEffect(() => {
+    // データを取得
     fetchData();
+
+    // 常に今日の日表示で開始
+    setCurrentTab('calendar');
+    setViewMode('day');
+    setCurrentDate(new Date());
+    setSelectedDate(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
