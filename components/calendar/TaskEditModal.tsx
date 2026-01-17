@@ -160,6 +160,12 @@ export function TaskEditModal({
   };
 
   const handleSave = async () => {
+    // バリデーション: 週次繰り返しの場合は曜日を選択必須
+    if (formData.repeat === 'weekly' && formData.repeatDays.length === 0) {
+      alert('週次繰り返しの場合は、少なくとも1つの曜日を選択してください。');
+      return;
+    }
+
     // formData.dateを使用
     const baseDate = new Date(formData.date + 'T00:00:00');
     const [startHour, startMinute] = formData.startTime.split(':').map(Number);
@@ -430,6 +436,53 @@ export function TaskEditModal({
                 <Label htmlFor="monthly" className="text-sm">毎月</Label>
               </div>
             </RadioGroup>
+
+            {formData.repeat === 'weekly' && (
+              <div className="ml-6 space-y-2">
+                <Label className="text-sm">繰り返す曜日</Label>
+                <div className="grid grid-cols-4 gap-2">
+                  {[
+                    { value: 1, label: '月' },
+                    { value: 2, label: '火' },
+                    { value: 3, label: '水' },
+                    { value: 4, label: '木' },
+                    { value: 5, label: '金' },
+                    { value: 6, label: '土' },
+                    { value: 7, label: '日' },
+                  ].map((day) => (
+                    <div key={day.value} className="flex items-center space-x-2">
+                      <Checkbox
+                        checked={formData.repeatDays.includes(day.value)}
+                        onCheckedChange={(checked) => {
+                          setFormData((prev) => ({
+                            ...prev,
+                            repeatDays: checked
+                              ? [...prev.repeatDays, day.value]
+                              : prev.repeatDays.filter((d) => d !== day.value),
+                          }));
+                        }}
+                      />
+                      <Label className="text-sm">{day.label}</Label>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {formData.repeat === 'monthly' && (
+              <div className="ml-6 space-y-2">
+                <Label className="text-sm">繰り返す日</Label>
+                <Input
+                  type="number"
+                  min="1"
+                  max="31"
+                  value={formData.repeatDate}
+                  onChange={(e) =>
+                    setFormData((prev) => ({ ...prev, repeatDate: parseInt(e.target.value) || 1 }))
+                  }
+                />
+              </div>
+            )}
           </div>
         </div>
 
