@@ -131,36 +131,45 @@ export function CalendarView({ onEventClick }: CalendarViewProps) {
     if (!container || isRefreshing) return;
 
     // 一番上にスクロールしている場合のみプルを有効化
-    if (container.scrollTop === 0) {
+    if (container.scrollTop <= 5) { // 5px以内なら一番上と判定（誤差を考慮）
       touchStartY.current = e.touches[0].clientY;
-      setIsPulling(true);
     }
   }, [isRefreshing]);
 
   const handleTouchMove = useCallback((e: React.TouchEvent) => {
-    if (!isPulling || isRefreshing) return;
+    if (isRefreshing || touchStartY.current === 0) return;
+
+    const container = scrollContainerRef.current;
+    if (!container) return;
 
     const currentY = e.touches[0].clientY;
     const distance = currentY - touchStartY.current;
 
-    // 下方向にドラッグしている場合のみ
-    if (distance > 0) {
-      setPullDistance(Math.min(distance, 100)); // 最大100px
+    // スクロール位置が一番上で、かつ下方向にドラッグしている場合のみ
+    if (container.scrollTop <= 5 && distance > 10) { // 10px以上引っ張ったらプル開始
+      if (!isPulling) {
+        setIsPulling(true);
+      }
+      setPullDistance(Math.min(distance - 10, 100)); // 最大100px
 
       // ブラウザのデフォルト動作を防ぐ
-      if (distance > 5) {
-        e.preventDefault();
-      }
+      e.preventDefault();
+    } else if (isPulling && distance <= 0) {
+      // 上にスワイプしたらプルをキャンセル
+      setIsPulling(false);
+      setPullDistance(0);
     }
   }, [isPulling, isRefreshing]);
 
   const handleTouchEnd = useCallback(async () => {
+    touchStartY.current = 0;
+
     if (!isPulling) return;
 
     setIsPulling(false);
 
-    // 50px以上引っ張ったらリフレッシュ
-    if (pullDistance > 50 && !isRefreshing) {
+    // 60px以上引っ張ったらリフレッシュ
+    if (pullDistance > 60 && !isRefreshing) {
       setIsRefreshing(true);
       sonnerToast.loading('データを更新中...', { id: 'pull-refresh' });
 
