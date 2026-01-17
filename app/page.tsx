@@ -40,6 +40,32 @@ export default function Home() {
 
   // 初回マウント時：データ取得とビューのリセット
   useEffect(() => {
+    // 古いlocalStorageデータをクリア（userSettings, goals が含まれている場合）
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem('calendar-app-storage');
+      if (stored) {
+        try {
+          const data = JSON.parse(stored);
+          // userSettingsやgoalsが含まれている場合は削除して再作成
+          if (data.state && (data.state.userSettings || data.state.goals)) {
+            console.log('🧹 Cleaning old localStorage data...');
+            const cleaned = {
+              state: {
+                currentDate: data.state.currentDate,
+                selectedDate: data.state.selectedDate,
+                viewMode: data.state.viewMode,
+                currentTab: data.state.currentTab,
+              },
+              version: data.version,
+            };
+            localStorage.setItem('calendar-app-storage', JSON.stringify(cleaned));
+          }
+        } catch (e) {
+          console.error('Error cleaning localStorage:', e);
+        }
+      }
+    }
+
     // データを取得
     fetchData();
 

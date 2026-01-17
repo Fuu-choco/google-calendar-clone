@@ -688,6 +688,15 @@ export const useAppStore = create<AppState>()(
     }),
     {
       name: 'calendar-app-storage',
+      // userSettingsとgoalsはSupabaseのみに保存（localStorageには保存しない）
+      partialize: (state) => ({
+        currentDate: state.currentDate,
+        selectedDate: state.selectedDate,
+        viewMode: state.viewMode,
+        currentTab: state.currentTab,
+        // userSettings と goals は除外（Supabaseから毎回読み込む）
+        // events, todos, templates, categories も除外（Supabaseから読み込む）
+      }),
     }
   )
 );
