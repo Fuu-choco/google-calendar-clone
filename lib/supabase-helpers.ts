@@ -30,6 +30,8 @@ export async function fetchCalendarEvents() {
     notificationEnabled: event.notification_enabled,
     notificationMinutes: event.notification_minutes_before || [],
     repeat: event.recurrence_type || 'none',
+    repeatDays: event.recurrence_days || undefined,
+    repeatDate: event.recurrence_end_date ? new Date(event.recurrence_end_date).getDate() : undefined,
   })) as CalendarEvent[];
 }
 
@@ -47,6 +49,7 @@ export async function createCalendarEvent(event: CalendarEvent) {
     notification_enabled: event.notificationEnabled || false,
     notification_minutes_before: event.notificationMinutes || [],
     recurrence_type: event.repeat || 'none',
+    recurrence_days: event.repeatDays || null,
     status: 'pending',
   };
 
@@ -83,6 +86,7 @@ export async function updateCalendarEvent(id: string, updates: Partial<CalendarE
   if (updates.notificationEnabled !== undefined) dbUpdates.notification_enabled = updates.notificationEnabled;
   if (updates.notificationMinutes !== undefined) dbUpdates.notification_minutes_before = updates.notificationMinutes;
   if (updates.repeat !== undefined) dbUpdates.recurrence_type = updates.repeat;
+  if (updates.repeatDays !== undefined) dbUpdates.recurrence_days = updates.repeatDays;
 
   const { data, error } = await supabase
     .from('calendar_events')
