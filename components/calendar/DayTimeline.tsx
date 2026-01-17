@@ -232,11 +232,14 @@ export function DayTimeline({ onEventClick, onTimeSlotClick, onTodoClick, onAuto
     }
   }, [dayEvents, updateEvent]);
 
-  const handlers = useSwipeable({
+  const swipeHandlers = useSwipeable({
     onSwipedLeft: handleNextDay,
     onSwipedRight: handlePrevDay,
     trackMouse: true,
   });
+
+  // refを除外したhandlers（ScrollAreaに独自のrefを使うため）
+  const { ref: _swipeRef, ...handlers } = swipeHandlers;
 
   const getEventPosition = useCallback((event: CalendarEvent) => {
     const start = parseISO(event.start);
