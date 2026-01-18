@@ -279,19 +279,20 @@ export const useAppStore = create<AppState>()(
               longWorkAlertHours: userPrefs.long_work_alert_hours,
             } : defaultSettings;
 
-            // カテゴリIDを名前で検索
-            const studyCategory = categories.find((c: CategoryItem) => c.name === '学習');
-            const workCategory = categories.find((c: CategoryItem) => c.name === '勤務');
+            console.log('📥 Loaded userSettings from Supabase:', userSettings);
+            console.log('📊 userPrefs from DB:', userPrefs);
 
             const goals: Goal = userPrefs ? {
               studyHours: userPrefs.weekly_study_hours_goal * 4, // 週次 → 月次
-              studyLongTermHours: 0,
-              studyLongTermDeadline: '',
+              studyLongTermHours: userPrefs.study_long_term_hours_goal || 0,
+              studyLongTermDeadline: userPrefs.study_long_term_deadline || '',
               workHours: userPrefs.weekly_work_hours_goal * 4, // 週次 → 月次
               todoCompletionRate: userPrefs.todo_completion_goal,
-              studyCategoryId: studyCategory?.id || '1',
-              workCategoryId: workCategory?.id || '2',
+              studyCategoryId: userPrefs.study_category_id || '1',
+              workCategoryId: userPrefs.work_category_id || '2',
             } : defaultGoals;
+
+            console.log('🎯 Loaded goals from Supabase:', goals);
 
             // 繰り返しTodoを自動生成（30日先まで）
             const newRepeatTodos = generateRepeatTodos(todos, new Date(), 30);
@@ -611,13 +612,16 @@ export const useAppStore = create<AppState>()(
         const currentState = get();
         const newSettings = { ...currentState.userSettings, ...settings };
 
+        console.log('💾 Saving settings to Supabase...', newSettings);
+        console.log('🎯 Current goals:', currentState.goals);
+
         try {
           // ローカル状態を即座に更新
           set({ userSettings: newSettings });
 
           // Supabaseに保存（設定と目標を一緒に更新）
-          await updateUserPreferences(newSettings, currentState.goals);
-          console.log('✅ Settings saved successfully');
+          const result = await updateUserPreferences(newSettings, currentState.goals);
+          console.log('✅ Settings saved successfully', result);
         } catch (error) {
           console.error('❌ Error updating settings:', error);
           // エラー時は元に戻す
@@ -630,13 +634,16 @@ export const useAppStore = create<AppState>()(
         const currentState = get();
         const newGoals = { ...currentState.goals, ...goals };
 
+        console.log('🎯 Saving goals to Supabase...', newGoals);
+        console.log('⚙️ Current settings:', currentState.userSettings);
+
         try {
           // ローカル状態を即座に更新
           set({ goals: newGoals });
 
           // Supabaseに保存（設定と目標を一緒に更新）
-          await updateUserPreferences(currentState.userSettings, newGoals);
-          console.log('✅ Goals saved successfully');
+          const result = await updateUserPreferences(currentState.userSettings, newGoals);
+          console.log('✅ Goals saved successfully', result);
         } catch (error) {
           console.error('❌ Error updating goals:', error);
           // エラー時は元に戻す

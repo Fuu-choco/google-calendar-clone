@@ -236,6 +236,10 @@ export async function fetchUserPreferences() {
           weekly_study_hours_goal: 20,
           weekly_work_hours_goal: 40,
           todo_completion_goal: 90,
+          study_long_term_hours_goal: 0,
+          study_long_term_deadline: '',
+          study_category_id: '1',
+          work_category_id: '2',
         })
         .select()
         .single();
@@ -274,6 +278,10 @@ export async function updateUserPreferences(settings: any, goals: any) {
     weekly_study_hours_goal: Math.round(goals.studyHours / 4), // 月次 → 週次
     weekly_work_hours_goal: Math.round(goals.workHours / 4), // 月次 → 週次
     todo_completion_goal: goals.todoCompletionRate,
+    study_long_term_hours_goal: goals.studyLongTermHours || 0,
+    study_long_term_deadline: goals.studyLongTermDeadline || '',
+    study_category_id: goals.studyCategoryId || '1',
+    work_category_id: goals.workCategoryId || '2',
     updated_at: new Date().toISOString(),
   };
 
