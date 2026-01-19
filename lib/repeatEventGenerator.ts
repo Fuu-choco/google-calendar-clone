@@ -11,6 +11,8 @@ export function expandRecurringEvents(
 ): CalendarEvent[] {
   const expandedEvents: CalendarEvent[] = [];
 
+  console.log(`🔄 expandRecurringEvents called with ${events.length} events`);
+
   for (const event of events) {
     const eventStart = parseISO(event.start);
     const eventEnd = parseISO(event.end);
@@ -39,6 +41,8 @@ export function expandRecurringEvents(
     let count = 0;
     const maxOccurrences = 100;
 
+    console.log(`  📅 Expanding recurring event: "${event.title}", repeat: ${event.repeat}, repeatDays: ${JSON.stringify(event.repeatDays)}`);
+
     while (currentDate && !isAfter(currentDate, endDate) && count < maxOccurrences) {
       // イベント開始日以降のみ繰り返しを生成
       if (!isBefore(currentDate, eventStart)) {
@@ -59,8 +63,11 @@ export function expandRecurringEvents(
       currentDate = nextDate;
       count++;
     }
+
+    console.log(`  ✅ Expanded "${event.title}" into ${count} occurrences`);
   }
 
+  console.log(`🔄 expandRecurringEvents completed: ${expandedEvents.length} total events`);
   return expandedEvents;
 }
 
@@ -112,10 +119,12 @@ function getNextOccurrence(
       return addDays(currentDate, 1);
 
     case 'weekly':
-      if (!repeatDays || repeatDays.length === 0) {
-        // 曜日が指定されていない場合は1週間後
+      // repeatDaysが配列でない、または空の場合は1週間後
+      if (!Array.isArray(repeatDays) || repeatDays.length === 0) {
+        console.warn(`⚠️ repeatDays is invalid:`, repeatDays, 'defaulting to 1 week later');
         return addWeeks(currentDate, 1);
       }
+
       // 次の指定曜日を探す
       let nextDate = addDays(currentDate, 1);
       for (let i = 0; i < 7; i++) {
@@ -127,6 +136,8 @@ function getNextOccurrence(
         }
         nextDate = addDays(nextDate, 1);
       }
+      // 7日探しても見つからなかった場合（ありえないはずだが）
+      console.warn(`⚠️ Could not find next occurrence for repeatDays:`, repeatDays);
       return nextDate;
 
     case 'monthly':
