@@ -75,6 +75,7 @@ interface AppState {
   updateTodo: (id: string, todo: Partial<Todo>) => Promise<void>;
   deleteTodo: (id: string) => Promise<void>;
   toggleTodo: (id: string) => Promise<void>;
+  createEventsFromTodo: (todo: Todo) => Promise<void>;
 
   // テンプレート操作
   addTemplate: (template: Template) => Promise<void>;
@@ -450,9 +451,19 @@ export const useAppStore = create<AppState>()(
             dueDate: savedTodo.due_date,
             createdDate: savedTodo.created_date,
             priority: savedTodo.priority,
+            repeat: savedTodo.repeat || todo.repeat || 'none',
+            repeatDays: savedTodo.repeat_days || todo.repeatDays,
+            repeatDate: savedTodo.repeat_date || todo.repeatDate,
+            parentTodoId: savedTodo.parent_todo_id || todo.parentTodoId,
           };
           set((state) => ({ todos: [...state.todos, appTodo] }));
           console.log('✅ Todo added successfully');
+
+          // Todoからカレンダーイベントを自動生成
+          if (!todo.parentTodoId) {
+            // 親Todoの場合のみ（子Todoはスキップ）
+            await get().createEventsFromTodo(appTodo);
+          }
         } catch (error) {
           console.error('❌ Error adding todo:', error);
           throw error;
@@ -504,6 +515,143 @@ export const useAppStore = create<AppState>()(
           console.log('✅ Todo toggled successfully');
         } catch (error) {
           console.error('❌ Error toggling todo:', error);
+          throw error;
+        }
+      },
+
+      createEventsFromTodo: async (todo) => {
+        try {
+          const userSettings = get().userSettings;
+
+          // デフォルトの時間設定（9:00-10:00）
+          const defaultStartTime = '09:00';
+          const defaultEndTime = '10:00';
+
+          // カテゴリに基づく色の決定
+          const categoryColors: Record<string, string> = {
+            '学習': '#8B5CF6',
+            '勤務': '#3B82F6',
+            'その他': '#6B7280',
+          };
+          const defaultCategory = 'その他';
+          const category = defaultCategory;
+          const color = categoryColors[category] || categoryColors['その他'];
+
+          // 繰り返し設定に基づいてイベントを生成
+          if (todo.repeat === 'none' || !todo.repeat) {
+            // 単発のイベントを生成
+            const eventDate = todo.dueDate;
+            const newEvent: CalendarEvent = {
+              id: generateId(),
+              title: todo.content,
+              start: `${eventDate}T${defaultStartTime}:00`,
+              end: `${eventDate}T${defaultEndTime}:00`,
+              priority: todo.priority || 'medium',
+              category,
+              color,
+              isFixed: false,
+              notificationEnabled: false,
+              notificationMinutes: [],
+              repeat: 'none',
+            };
+            await get().addEvent(newEvent);
+            console.log('✅ Created single event from todo:', newEvent.title);
+          } else if (todo.repeat === 'weekly' && todo.repeatDays) {
+            // 週繰り返しのイベントを30日分生成
+            const daysAhead = 30;
+            const startDate = new Date(todo.dueDate);
+            const endDate = addDays(startDate, daysAhead);
+
+            let currentDate = new Date(startDate);
+            const createdEvents: CalendarEvent[] = [];
+
+            while (currentDate <= endDate) {
+              const dayOfWeek = currentDate.getDay();
+
+              // 指定された曜日の場合のみイベントを作成
+              if (todo.repeatDays.includes(dayOfWeek)) {
+                const eventDateStr = format(currentDate, 'yyyy-MM-dd');
+                const newEvent: CalendarEvent = {
+                  id: generateId(),
+                  title: todo.content,
+                  start: `${eventDateStr}T${defaultStartTime}:00`,
+                  end: `${eventDateStr}T${defaultEndTime}:00`,
+                  priority: todo.priority || 'medium',
+                  category,
+                  color,
+                  isFixed: false,
+                  notificationEnabled: false,
+                  notificationMinutes: [],
+                  repeat: 'weekly',
+                  repeatDays: todo.repeatDays,
+                };
+                await get().addEvent(newEvent);
+                createdEvents.push(newEvent);
+              }
+
+              currentDate = addDays(currentDate, 1);
+            }
+
+            console.log(`✅ Created ${createdEvents.length} weekly repeat events from todo:`, todo.content);
+          } else if (todo.repeat === 'daily') {
+            // 毎日繰り返しのイベントを30日分生成
+            const daysAhead = 30;
+            const startDate = new Date(todo.dueDate);
+
+            for (let i = 0; i < daysAhead; i++) {
+              const eventDate = addDays(startDate, i);
+              const eventDateStr = format(eventDate, 'yyyy-MM-dd');
+
+              const newEvent: CalendarEvent = {
+                id: generateId(),
+                title: todo.content,
+                start: `${eventDateStr}T${defaultStartTime}:00`,
+                end: `${eventDateStr}T${defaultEndTime}:00`,
+                priority: todo.priority || 'medium',
+                category,
+                color,
+                isFixed: false,
+                notificationEnabled: false,
+                notificationMinutes: [],
+                repeat: 'daily',
+              };
+              await get().addEvent(newEvent);
+            }
+
+            console.log(`✅ Created 30 daily repeat events from todo:`, todo.content);
+          } else if (todo.repeat === 'monthly' && todo.repeatDate) {
+            // 月繰り返しのイベントを生成（次の3ヶ月分）
+            const monthsAhead = 3;
+            const startDate = new Date(todo.dueDate);
+
+            for (let i = 0; i < monthsAhead; i++) {
+              const eventDate = new Date(startDate);
+              eventDate.setMonth(eventDate.getMonth() + i);
+              eventDate.setDate(todo.repeatDate);
+
+              const eventDateStr = format(eventDate, 'yyyy-MM-dd');
+
+              const newEvent: CalendarEvent = {
+                id: generateId(),
+                title: todo.content,
+                start: `${eventDateStr}T${defaultStartTime}:00`,
+                end: `${eventDateStr}T${defaultEndTime}:00`,
+                priority: todo.priority || 'medium',
+                category,
+                color,
+                isFixed: false,
+                notificationEnabled: false,
+                notificationMinutes: [],
+                repeat: 'monthly',
+                repeatDate: todo.repeatDate,
+              };
+              await get().addEvent(newEvent);
+            }
+
+            console.log(`✅ Created 3 monthly repeat events from todo:`, todo.content);
+          }
+        } catch (error) {
+          console.error('❌ Error creating events from todo:', error);
           throw error;
         }
       },
