@@ -409,8 +409,15 @@ export const useAppStore = create<AppState>()(
             notificationMinutes: savedEvent.notification_minutes_before || [],
             repeat: savedEvent.recurrence_type || 'none',
             repeatDays: savedEvent.recurrence_days || undefined,
-            repeatDate: savedEvent.recurrence_end_date ? new Date(savedEvent.recurrence_end_date).getDate() : undefined,
+            repeatDate: undefined, // TODO: 月繰り返しの日付は別途実装が必要
           };
+
+          console.log('📊 Converted event from Supabase:', {
+            repeat: appEvent.repeat,
+            repeatDays: appEvent.repeatDays,
+            recurrence_type: savedEvent.recurrence_type,
+            recurrence_days: savedEvent.recurrence_days,
+          });
 
           // 繰り返しイベントの場合は展開する
           if (appEvent.repeat && appEvent.repeat !== 'none') {

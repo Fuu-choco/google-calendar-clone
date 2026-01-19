@@ -31,7 +31,7 @@ export async function fetchCalendarEvents() {
     notificationMinutes: event.notification_minutes_before || [],
     repeat: event.recurrence_type || 'none',
     repeatDays: event.recurrence_days || undefined,
-    repeatDate: event.recurrence_end_date ? new Date(event.recurrence_end_date).getDate() : undefined,
+    repeatDate: undefined, // TODO: 月繰り返しの日付は別途実装が必要
   })) as CalendarEvent[];
 }
 
