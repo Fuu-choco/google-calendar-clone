@@ -137,6 +137,10 @@ export async function fetchTodos() {
     dueDate: todo.due_date,
     createdDate: todo.created_date,
     priority: todo.priority,
+    repeat: todo.repeat || 'none',
+    repeatDays: todo.repeat_days || undefined,
+    repeatDate: todo.repeat_date || undefined,
+    parentTodoId: todo.parent_todo_id || undefined,
   })) as Todo[];
 }
 
@@ -149,6 +153,10 @@ export async function createTodo(todo: Omit<Todo, 'id'>) {
       due_date: todo.dueDate,
       created_date: todo.createdDate || new Date().toISOString().split('T')[0],
       priority: todo.priority,
+      repeat: todo.repeat || 'none',
+      repeat_days: todo.repeatDays || null,
+      repeat_date: todo.repeatDate || null,
+      parent_todo_id: todo.parentTodoId || null,
     })
     .select()
     .single();
@@ -171,6 +179,10 @@ export async function updateTodo(id: string, updates: Partial<Todo>) {
   }
   if (updates.dueDate !== undefined) dbUpdates.due_date = updates.dueDate;
   if (updates.priority !== undefined) dbUpdates.priority = updates.priority;
+  if (updates.repeat !== undefined) dbUpdates.repeat = updates.repeat;
+  if (updates.repeatDays !== undefined) dbUpdates.repeat_days = updates.repeatDays;
+  if (updates.repeatDate !== undefined) dbUpdates.repeat_date = updates.repeatDate;
+  if (updates.parentTodoId !== undefined) dbUpdates.parent_todo_id = updates.parentTodoId;
 
   const { data, error } = await supabase
     .from('todos')
