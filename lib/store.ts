@@ -33,6 +33,7 @@ import {
   initializeDatabase,
 } from './indexedDB';
 import { generateRepeatTodos } from './repeatTodoGenerator';
+import { expandRecurringEvents } from './repeatEventGenerator';
 import { generateId } from './utils';
 
 // Supabaseが設定されているかチェック
@@ -309,8 +310,14 @@ export const useAppStore = create<AppState>()(
             // 全Todoを再取得（新しく生成されたものを含む）
             const allTodos = [...todos, ...newRepeatTodos];
 
+            // 繰り返しイベントを展開（30日先まで）
+            const startDate = new Date();
+            const endDate = addDays(startDate, 30);
+            const expandedEvents = expandRecurringEvents(events, startDate, endDate);
+            console.log(`📅 Expanded ${expandedEvents.length} events from ${events.length} original events`);
+
             set({
-              events,
+              events: expandedEvents,
               todos: allTodos,
               templates: templates.length > 0 ? templates : mockTemplates,
               categories: categories.length > 0 ? categories : defaultCategories,
@@ -348,8 +355,14 @@ export const useAppStore = create<AppState>()(
             // 全Todoを再取得（新しく生成されたものを含む）
             const allTodos = [...todos, ...newRepeatTodos];
 
+            // 繰り返しイベントを展開（30日先まで）
+            const startDate = new Date();
+            const endDate = addDays(startDate, 30);
+            const expandedEvents = expandRecurringEvents(events, startDate, endDate);
+            console.log(`📅 Expanded ${expandedEvents.length} events from ${events.length} original events (IndexedDB)`);
+
             set({
-              events,
+              events: expandedEvents,
               todos: allTodos,
               templates: templates.length > 0 ? templates : mockTemplates,
               categories: categories.length > 0 ? categories : defaultCategories,
@@ -393,10 +406,23 @@ export const useAppStore = create<AppState>()(
             notificationEnabled: savedEvent.notification_enabled,
             notificationMinutes: savedEvent.notification_minutes_before || [],
             repeat: savedEvent.recurrence_type || 'none',
+            repeatDays: savedEvent.recurrence_days || undefined,
+            repeatDate: savedEvent.recurrence_end_date ? new Date(savedEvent.recurrence_end_date).getDate() : undefined,
           };
 
-          // ローカル状態を更新
-          set((state) => ({ events: [...state.events, appEvent] }));
+          // 繰り返しイベントの場合は展開する
+          if (appEvent.repeat && appEvent.repeat !== 'none') {
+            const startDate = new Date(appEvent.start);
+            const endDate = addDays(startDate, 30);
+            const expandedEvents = expandRecurringEvents([appEvent], startDate, endDate);
+            console.log(`📅 Expanded new recurring event into ${expandedEvents.length} instances`);
+
+            // 展開されたすべてのイベントを追加
+            set((state) => ({ events: [...state.events, ...expandedEvents] }));
+          } else {
+            // 単発イベントはそのまま追加
+            set((state) => ({ events: [...state.events, appEvent] }));
+          }
           console.log('✅ Store: Event added to state successfully');
         } catch (error) {
           console.error('❌ Store: Error adding event:', error);
