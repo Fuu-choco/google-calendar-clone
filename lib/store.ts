@@ -424,16 +424,18 @@ export const useAppStore = create<AppState>()(
           const event = get().events.find((e) => e.id === id);
           if (!event) throw new Error('Event not found');
 
-          // 展開された繰り返しイベントの場合は、ローカル状態のみ更新（DBには保存しない）
-          if ((event as any)._isRecurring) {
-            console.log('⚠️ Cannot update recurring event instance. Update the original event instead.');
-            // ローカル状態のみ更新
-            const updatedEvent = { ...event, ...updates };
-            set((state) => ({
-              events: state.events.map((e) => (e.id === id ? updatedEvent : e)),
-              selectedEvent: state.selectedEvent?.id === id ? updatedEvent : state.selectedEvent,
-            }));
-            console.log('✅ Event updated in local state only (recurring instance)');
+          // 展開された繰り返しイベントの場合は、元のイベントIDを使ってDBを更新
+          if ((event as any)._isRecurring && (event as any)._originalId) {
+            const originalId = (event as any)._originalId;
+            console.log('📝 Updating recurring event:', originalId);
+
+            // データベースの元のイベントを更新
+            await updateCalendarEvent(originalId, updates);
+
+            // データを再取得して再展開
+            console.log('🔄 Fetching data to refresh recurring events...');
+            await get().fetchData();
+            console.log('✅ Recurring event updated and refreshed');
             return;
           }
 
@@ -455,15 +457,28 @@ export const useAppStore = create<AppState>()(
       deleteEvent: async (id) => {
         try {
           const event = get().events.find((e) => e.id === id);
+          if (!event) {
+            console.warn('⚠️ Event not found:', id);
+            return;
+          }
 
-          // 展開された繰り返しイベントの場合は、ローカル状態のみ削除（DBからは削除しない）
-          if (event && (event as any)._isRecurring) {
-            console.log('⚠️ Deleting recurring event instance from local state only');
+          // 展開された繰り返しイベントの場合は、元のイベントIDを使ってDBから削除
+          if ((event as any)._isRecurring && (event as any)._originalId) {
+            const originalId = (event as any)._originalId;
+            console.log('🗑️ Deleting recurring event:', originalId);
+
+            // データベースから元のイベントを削除
+            await deleteCalendarEvent(originalId);
+
+            // ローカル状態から、同じ元IDを持つすべての展開されたイベントを削除
             set((state) => ({
-              events: state.events.filter((e) => e.id !== id),
+              events: state.events.filter((e) => {
+                const eOriginalId = (e as any)._originalId;
+                return eOriginalId !== originalId && e.id !== originalId;
+              }),
               selectedEvent: state.selectedEvent?.id === id ? null : state.selectedEvent,
             }));
-            console.log('✅ Event removed from local state (recurring instance)');
+            console.log('✅ Recurring event and all instances deleted');
             return;
           }
 
