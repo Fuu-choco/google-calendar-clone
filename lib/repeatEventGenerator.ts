@@ -16,15 +16,9 @@ export function expandRecurringEvents(
     const eventEnd = parseISO(event.end);
     const duration = eventEnd.getTime() - eventStart.getTime();
 
-    // 繰り返しなしの場合
+    // 繰り返しなしの場合は範囲チェックせずそのまま含める
     if (!event.repeat || event.repeat === 'none') {
-      // イベントが範囲内にあるかチェック
-      if (
-        (isSameDay(eventStart, startDate) || isAfter(eventStart, startDate)) &&
-        (isSameDay(eventStart, endDate) || isBefore(eventStart, endDate))
-      ) {
-        expandedEvents.push(event);
-      }
+      expandedEvents.push(event);
       continue;
     }
 
