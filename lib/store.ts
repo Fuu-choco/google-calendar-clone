@@ -421,12 +421,20 @@ export const useAppStore = create<AppState>()(
 
       updateEvent: async (id, updates) => {
         try {
-          const event = get().events.find((e) => e.id === id);
-          if (!event) throw new Error('Event not found');
+          // 展開されたイベントのIDから元のIDを抽出（形式: "originalId-timestamp"）
+          let originalId = id;
+          if (id.includes('-') && id.match(/\d{4}-\d{2}-\d{2}T/)) {
+            // タイムスタンプを含むIDの場合、最初のUUID部分を抽出
+            originalId = id.split('-').slice(0, 5).join('-'); // UUID形式（8-4-4-4-12）
+            console.log('🔍 Extracted original ID from expanded event:', originalId);
+          }
 
-          // 展開された繰り返しイベントの場合は、元のイベントIDを使ってDBを更新
-          if ((event as any)._isRecurring && (event as any)._originalId) {
-            const originalId = (event as any)._originalId;
+          // 生のイベントを検索
+          const event = get().events.find((e) => e.id === originalId);
+          if (!event) throw new Error('Event not found: ' + originalId);
+
+          // 繰り返しイベントの場合は、DBを更新してデータを再取得
+          if (event.repeat && event.repeat !== 'none') {
             console.log('📝 Updating recurring event:', originalId);
 
             // データベースの元のイベントを更新
@@ -439,12 +447,12 @@ export const useAppStore = create<AppState>()(
             return;
           }
 
-          // 通常のイベントはDBに保存
+          // 通常のイベントはDBに保存してローカル状態も更新
           const updatedEvent = { ...event, ...updates };
-          await updateCalendarEvent(id, updates);
+          await updateCalendarEvent(originalId, updates);
 
           set((state) => ({
-            events: state.events.map((e) => (e.id === id ? updatedEvent : e)),
+            events: state.events.map((e) => (e.id === originalId ? updatedEvent : e)),
             selectedEvent: state.selectedEvent?.id === id ? updatedEvent : state.selectedEvent,
           }));
           console.log('✅ Event updated successfully');
@@ -456,36 +464,34 @@ export const useAppStore = create<AppState>()(
 
       deleteEvent: async (id) => {
         try {
-          const event = get().events.find((e) => e.id === id);
+          // 展開されたイベントのIDから元のIDを抽出（形式: "originalId-timestamp"）
+          let originalId = id;
+          if (id.includes('-') && id.match(/\d{4}-\d{2}-\d{2}T/)) {
+            // タイムスタンプを含むIDの場合、最初のUUID部分を抽出
+            originalId = id.split('-').slice(0, 5).join('-'); // UUID形式（8-4-4-4-12）
+            console.log('🔍 Extracted original ID from expanded event:', originalId);
+          }
+
+          // 生のイベントを検索
+          const event = get().events.find((e) => e.id === originalId);
           if (!event) {
-            console.warn('⚠️ Event not found:', id);
+            console.warn('⚠️ Event not found:', originalId);
             return;
           }
 
-          // 展開された繰り返しイベントの場合は、元のイベントIDを使ってDBから削除
-          if ((event as any)._isRecurring && (event as any)._originalId) {
-            const originalId = (event as any)._originalId;
+          // 繰り返しイベントかどうかをチェック
+          if (event.repeat && event.repeat !== 'none') {
             console.log('🗑️ Deleting recurring event:', originalId);
-
-            // データベースから元のイベントを削除
-            await deleteCalendarEvent(originalId);
-
-            // ローカル状態から、同じ元IDを持つすべての展開されたイベントを削除
-            set((state) => ({
-              events: state.events.filter((e) => {
-                const eOriginalId = (e as any)._originalId;
-                return eOriginalId !== originalId && e.id !== originalId;
-              }),
-              selectedEvent: state.selectedEvent?.id === id ? null : state.selectedEvent,
-            }));
-            console.log('✅ Recurring event and all instances deleted');
-            return;
+          } else {
+            console.log('🗑️ Deleting single event:', originalId);
           }
 
-          // 通常のイベントはDBからも削除
-          await deleteCalendarEvent(id);
+          // データベースから削除
+          await deleteCalendarEvent(originalId);
+
+          // ローカル状態から削除
           set((state) => ({
-            events: state.events.filter((e) => e.id !== id),
+            events: state.events.filter((e) => e.id !== originalId),
             selectedEvent: state.selectedEvent?.id === id ? null : state.selectedEvent,
           }));
           console.log('✅ Event deleted successfully');
