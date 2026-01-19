@@ -187,6 +187,15 @@ export function TaskEditModal({
     const category = categories.find(c => c.name === formData.category);
     const eventColor = category?.color || '#3B82F6';
 
+    // 週繰り返しの場合、曜日が選択されていなければイベント日の曜日を自動設定
+    let repeatDays = formData.repeatDays;
+    if (formData.repeat === 'weekly' && (!repeatDays || repeatDays.length === 0)) {
+      const eventDay = startDate.getDay(); // 0=日曜, 6=土曜
+      const adjustedDay = eventDay === 0 ? 7 : eventDay; // 1=月曜, 7=日曜
+      repeatDays = [adjustedDay];
+      console.log(`📅 Auto-set repeatDays to [${adjustedDay}] based on event date`);
+    }
+
     const eventData: CalendarEvent = {
       id: event?.id || generateId(),
       title: formData.title,
@@ -200,7 +209,7 @@ export function TaskEditModal({
       notificationEnabled: formData.notificationEnabled,
       notificationMinutes,
       repeat: formData.repeat || 'none',
-      repeatDays: formData.repeat === 'weekly' ? formData.repeatDays : undefined,
+      repeatDays: formData.repeat === 'weekly' ? repeatDays : undefined,
       repeatDate: formData.repeat === 'monthly' ? formData.repeatDate : undefined,
     };
 

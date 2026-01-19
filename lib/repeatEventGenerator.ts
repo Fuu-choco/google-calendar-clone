@@ -24,6 +24,14 @@ export function expandRecurringEvents(
       continue;
     }
 
+    // 週繰り返しなのにrepeatDaysが設定されていない場合はスキップ（データ不整合）
+    if (event.repeat === 'weekly' && (!event.repeatDays || event.repeatDays.length === 0)) {
+      console.warn(`⚠️ Skipping weekly event "${event.title}" with invalid repeatDays:`, event.repeatDays);
+      // 単発イベントとして追加（繰り返さない）
+      expandedEvents.push(event);
+      continue;
+    }
+
     // 繰り返しありの場合
     // イベント開始日と範囲開始日の遅い方から開始（過去には繰り返さない）
     const recurringStartDate = isAfter(eventStart, startDate) ? eventStart : startDate;
