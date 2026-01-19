@@ -33,7 +33,6 @@ import {
   initializeDatabase,
 } from './indexedDB';
 import { generateRepeatTodos } from './repeatTodoGenerator';
-import { expandRecurringEvents } from './repeatEventGenerator';
 import { generateId } from './utils';
 
 // Supabaseが設定されているかチェック
@@ -310,15 +309,11 @@ export const useAppStore = create<AppState>()(
             // 全Todoを再取得（新しく生成されたものを含む）
             const allTodos = [...todos, ...newRepeatTodos];
 
-            // 繰り返しイベントを展開（過去30日〜未来60日）
-            const today = new Date();
-            const startDate = addDays(today, -30); // 過去30日から
-            const endDate = addDays(today, 60);     // 未来60日まで
-            const expandedEvents = expandRecurringEvents(events, startDate, endDate);
-            console.log(`📅 Expanded ${expandedEvents.length} events from ${events.length} original events`);
+            // イベントはそのまま保存（展開はクライアントサイドで行う）
+            console.log(`📅 Loaded ${events.length} original events (will expand on client side)`);
 
             set({
-              events: expandedEvents,
+              events: events,
               todos: allTodos,
               templates: templates.length > 0 ? templates : mockTemplates,
               categories: categories.length > 0 ? categories : defaultCategories,
@@ -356,15 +351,11 @@ export const useAppStore = create<AppState>()(
             // 全Todoを再取得（新しく生成されたものを含む）
             const allTodos = [...todos, ...newRepeatTodos];
 
-            // 繰り返しイベントを展開（過去30日〜未来60日）
-            const today = new Date();
-            const startDate = addDays(today, -30); // 過去30日から
-            const endDate = addDays(today, 60);     // 未来60日まで
-            const expandedEvents = expandRecurringEvents(events, startDate, endDate);
-            console.log(`📅 Expanded ${expandedEvents.length} events from ${events.length} original events (IndexedDB)`);
+            // イベントはそのまま保存（展開はクライアントサイドで行う）
+            console.log(`📅 Loaded ${events.length} original events from IndexedDB (will expand on client side)`);
 
             set({
-              events: expandedEvents,
+              events: events,
               todos: allTodos,
               templates: templates.length > 0 ? templates : mockTemplates,
               categories: categories.length > 0 ? categories : defaultCategories,
@@ -419,23 +410,9 @@ export const useAppStore = create<AppState>()(
             recurrence_days: savedEvent.recurrence_days,
           });
 
-          // 繰り返しイベントの場合は展開する
-          if (appEvent.repeat && appEvent.repeat !== 'none') {
-            const today = new Date();
-            const eventStartDate = new Date(appEvent.start);
-            // イベント開始日と今日の早い方から、60日先まで展開
-            const startDate = eventStartDate < today ? eventStartDate : addDays(today, -30);
-            const endDate = addDays(today, 60);
-            const expandedEvents = expandRecurringEvents([appEvent], startDate, endDate);
-            console.log(`📅 Expanded new recurring event into ${expandedEvents.length} instances`);
-
-            // 展開されたすべてのイベントを追加
-            set((state) => ({ events: [...state.events, ...expandedEvents] }));
-          } else {
-            // 単発イベントはそのまま追加
-            set((state) => ({ events: [...state.events, appEvent] }));
-          }
-          console.log('✅ Store: Event added to state successfully');
+          // 生のイベントのみを保存（展開はクライアントサイドで行う）
+          set((state) => ({ events: [...state.events, appEvent] }));
+          console.log('✅ Store: Event added to state successfully (raw event, will expand on client side)');
         } catch (error) {
           console.error('❌ Store: Error adding event:', error);
           throw error;
@@ -603,118 +580,32 @@ export const useAppStore = create<AppState>()(
           const category = defaultCategory;
           const color = categoryColors[category] || categoryColors['その他'];
 
-          // 繰り返し設定に基づいてイベントを生成
-          if (todo.repeat === 'none' || !todo.repeat) {
-            // 単発のイベントを生成
-            const eventDate = todo.dueDate;
-            const newEvent: CalendarEvent = {
-              id: generateId(),
-              title: todo.content,
-              start: `${eventDate}T${defaultStartTime}:00`,
-              end: `${eventDate}T${defaultEndTime}:00`,
-              priority: todo.priority || 'medium',
-              category,
-              color,
-              isFixed: false,
-              notificationEnabled: false,
-              notificationMinutes: [],
-              repeat: 'none',
-            };
-            await get().addEvent(newEvent);
+          // 繰り返し設定に基づいてイベントを生成（1つの繰り返しイベントのみ作成）
+          const eventDate = todo.dueDate;
+          const newEvent: CalendarEvent = {
+            id: generateId(),
+            title: todo.content,
+            start: `${eventDate}T${defaultStartTime}:00`,
+            end: `${eventDate}T${defaultEndTime}:00`,
+            priority: todo.priority || 'medium',
+            category,
+            color,
+            isFixed: false,
+            notificationEnabled: false,
+            notificationMinutes: [],
+            repeat: todo.repeat || 'none',
+            repeatDays: todo.repeatDays,
+            repeatDate: todo.repeatDate,
+          };
+          await get().addEvent(newEvent);
+
+          if (todo.repeat && todo.repeat !== 'none') {
+            console.log('✅ Created recurring event from todo (will expand on client side):', newEvent.title, {
+              repeat: todo.repeat,
+              repeatDays: todo.repeatDays,
+            });
+          } else {
             console.log('✅ Created single event from todo:', newEvent.title);
-          } else if (todo.repeat === 'weekly' && todo.repeatDays) {
-            // 週繰り返しのイベントを30日分生成
-            const daysAhead = 30;
-            const startDate = new Date(todo.dueDate);
-            const endDate = addDays(startDate, daysAhead);
-
-            let currentDate = new Date(startDate);
-            const createdEvents: CalendarEvent[] = [];
-
-            while (currentDate <= endDate) {
-              const dayOfWeek = currentDate.getDay();
-
-              // 指定された曜日の場合のみイベントを作成
-              if (todo.repeatDays.includes(dayOfWeek)) {
-                const eventDateStr = format(currentDate, 'yyyy-MM-dd');
-                const newEvent: CalendarEvent = {
-                  id: generateId(),
-                  title: todo.content,
-                  start: `${eventDateStr}T${defaultStartTime}:00`,
-                  end: `${eventDateStr}T${defaultEndTime}:00`,
-                  priority: todo.priority || 'medium',
-                  category,
-                  color,
-                  isFixed: false,
-                  notificationEnabled: false,
-                  notificationMinutes: [],
-                  repeat: 'weekly',
-                  repeatDays: todo.repeatDays,
-                };
-                await get().addEvent(newEvent);
-                createdEvents.push(newEvent);
-              }
-
-              currentDate = addDays(currentDate, 1);
-            }
-
-            console.log(`✅ Created ${createdEvents.length} weekly repeat events from todo:`, todo.content);
-          } else if (todo.repeat === 'daily') {
-            // 毎日繰り返しのイベントを30日分生成
-            const daysAhead = 30;
-            const startDate = new Date(todo.dueDate);
-
-            for (let i = 0; i < daysAhead; i++) {
-              const eventDate = addDays(startDate, i);
-              const eventDateStr = format(eventDate, 'yyyy-MM-dd');
-
-              const newEvent: CalendarEvent = {
-                id: generateId(),
-                title: todo.content,
-                start: `${eventDateStr}T${defaultStartTime}:00`,
-                end: `${eventDateStr}T${defaultEndTime}:00`,
-                priority: todo.priority || 'medium',
-                category,
-                color,
-                isFixed: false,
-                notificationEnabled: false,
-                notificationMinutes: [],
-                repeat: 'daily',
-              };
-              await get().addEvent(newEvent);
-            }
-
-            console.log(`✅ Created 30 daily repeat events from todo:`, todo.content);
-          } else if (todo.repeat === 'monthly' && todo.repeatDate) {
-            // 月繰り返しのイベントを生成（次の3ヶ月分）
-            const monthsAhead = 3;
-            const startDate = new Date(todo.dueDate);
-
-            for (let i = 0; i < monthsAhead; i++) {
-              const eventDate = new Date(startDate);
-              eventDate.setMonth(eventDate.getMonth() + i);
-              eventDate.setDate(todo.repeatDate);
-
-              const eventDateStr = format(eventDate, 'yyyy-MM-dd');
-
-              const newEvent: CalendarEvent = {
-                id: generateId(),
-                title: todo.content,
-                start: `${eventDateStr}T${defaultStartTime}:00`,
-                end: `${eventDateStr}T${defaultEndTime}:00`,
-                priority: todo.priority || 'medium',
-                category,
-                color,
-                isFixed: false,
-                notificationEnabled: false,
-                notificationMinutes: [],
-                repeat: 'monthly',
-                repeatDate: todo.repeatDate,
-              };
-              await get().addEvent(newEvent);
-            }
-
-            console.log(`✅ Created 3 monthly repeat events from todo:`, todo.content);
           }
         } catch (error) {
           console.error('❌ Error creating events from todo:', error);

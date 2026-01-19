@@ -5,7 +5,6 @@ import { useAppStore } from '@/lib/store';
 import { CalendarEvent } from '@/lib/types';
 import { format, parseISO, isSameDay, addDays, subDays, addMinutes, isToday } from 'date-fns';
 import { ja } from 'date-fns/locale';
-import { isEventOnDate } from '@/lib/repeatEventGenerator';
 import { ChevronLeft, ChevronRight, Sparkles, List } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -15,17 +14,17 @@ import { useSwipeable } from 'react-swipeable';
 import { DndContext, DragEndEvent, PointerSensor, MouseSensor, TouchSensor, useSensor, useSensors, useDraggable } from '@dnd-kit/core';
 
 interface DayTimelineProps {
+  events: CalendarEvent[]; // 展開済みイベントを受け取る
   onEventClick?: (event: CalendarEvent) => void;
   onTimeSlotClick?: (start: Date, end: Date) => void;
   onTodoClick?: () => void;
   onAutoGenerate?: () => void;
 }
 
-export function DayTimeline({ onEventClick, onTimeSlotClick, onTodoClick, onAutoGenerate }: DayTimelineProps) {
+export function DayTimeline({ events, onEventClick, onTimeSlotClick, onTodoClick, onAutoGenerate }: DayTimelineProps) {
   const {
     selectedDate,
     currentDate,
-    events,
     setSelectedDate,
     updateEvent,
   } = useAppStore();
@@ -153,9 +152,11 @@ export function DayTimeline({ onEventClick, onTimeSlotClick, onTodoClick, onAuto
   }, [displayDate]);
 
   // dayEventsをメモ化してパフォーマンスを改善
+  // 展開済みイベントを使用するため、シンプルな日付比較で十分
   const dayEvents = useMemo(() => {
     return events.filter((event) => {
-      return isEventOnDate(event, displayDate);
+      const eventStart = parseISO(event.start);
+      return isSameDay(eventStart, displayDate);
     });
   }, [events, displayDate]);
 

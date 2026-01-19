@@ -20,7 +20,6 @@ import {
 import { ja } from 'date-fns/locale';
 import { useAppStore } from '@/lib/store';
 import { cn } from '@/lib/utils';
-import { isEventOnDate } from '@/lib/repeatEventGenerator';
 import {
   Dialog,
   DialogContent,
@@ -31,12 +30,13 @@ import { DndContext, DragEndEvent, useDraggable, useDroppable, PointerSensor, To
 import { toast } from 'sonner';
 
 interface MonthCalendarProps {
+  events: any[]; // 展開済みイベントを受け取る
   onEventClick?: (event: any) => void;
   onDateClick?: (date: Date) => void;
 }
 
-export function MonthCalendar({ onEventClick, onDateClick }: MonthCalendarProps) {
-  const { currentDate, events, setSelectedDate, setViewMode, updateEvent } = useAppStore();
+export function MonthCalendar({ events, onEventClick, onDateClick }: MonthCalendarProps) {
+  const { currentDate, setSelectedDate, setViewMode, updateEvent } = useAppStore();
   const [showDayModal, setShowDayModal] = useState(false);
   const [modalDate, setModalDate] = useState<Date | null>(null);
   const [draggedEvent, setDraggedEvent] = useState<string | null>(null);
@@ -123,8 +123,10 @@ export function MonthCalendar({ onEventClick, onDateClick }: MonthCalendarProps)
   const weekDays = ['月', '火', '水', '木', '金', '土', '日'];
 
   const getEventsForDay = (date: Date) => {
+    // 展開済みイベントを使用するため、シンプルな日付比較で十分
     return events.filter((event) => {
-      return isEventOnDate(event, date);
+      const eventStart = parseISO(event.start);
+      return isSameDay(eventStart, date);
     });
   };
 

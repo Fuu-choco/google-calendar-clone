@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import { useAppStore } from '@/lib/store';
 import { CalendarEvent } from '@/lib/types';
 import { MonthCalendar } from './MonthCalendar';
@@ -8,11 +8,12 @@ import { DayTimeline } from './DayTimeline';
 import { TaskEditModal } from './TaskEditModal';
 import { Button } from '@/components/ui/button';
 import { ChevronLeft, ChevronRight, RefreshCw } from 'lucide-react';
-import { format, addMonths, subMonths } from 'date-fns';
+import { format, addMonths, subMonths, addDays } from 'date-fns';
 import { ja } from 'date-fns/locale';
 import { generateDaySchedule } from '@/lib/scheduleGenerator';
 import { useToast } from '@/hooks/use-toast';
 import { toast as sonnerToast } from 'sonner';
+import { expandRecurringEvents } from '@/lib/repeatEventGenerator';
 
 interface CalendarViewProps {
   onEventClick?: (event: CalendarEvent) => void;
@@ -44,6 +45,27 @@ export function CalendarView({ onEventClick }: CalendarViewProps) {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   const displayDate = selectedDate || currentDate;
+
+  // クライアントサイドでのマウント状態を追跡
+  const [isMounted, setIsMounted] = useState(false);
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
+  // クライアントサイドのみで繰り返しイベントを展開
+  const expandedEvents = useMemo(() => {
+    if (!isMounted) {
+      // マウント前は空の配列を返す（SSRとの整合性）
+      return [];
+    }
+    const today = new Date();
+    const startDate = addDays(today, -30);
+    const endDate = addDays(today, 60);
+    const expanded = expandRecurringEvents(events, startDate, endDate);
+    console.log(`🔄 Client-side expansion: ${expanded.length} events from ${events.length} original events`);
+    return expanded;
+  }, [events, isMounted]);
 
   const handleEventClick = (event: CalendarEvent) => {
     if (onEventClick) {
@@ -248,11 +270,13 @@ export function CalendarView({ onEventClick }: CalendarViewProps) {
       >
         {viewMode === 'month' ? (
           <MonthCalendar
+            events={expandedEvents}
             onEventClick={handleEventClick}
             onDateClick={handleDateClick}
           />
         ) : (
           <DayTimeline
+            events={expandedEvents}
             onEventClick={handleEventClick}
             onTimeSlotClick={handleTimeSlotClick}
             onTodoClick={() => setCurrentTab('todo')}
