@@ -33,6 +33,8 @@ export interface CalendarEvent {
   repeat: RepeatType;
   repeatDays?: number[];
   repeatDate?: number;
+  exceptionDates?: string[]; // 繰り返しから除外する日付のリスト (YYYY-MM-DD)
+  recurrenceEndDate?: string; // 繰り返しの終了日 (YYYY-MM-DD)
   showInMonthView?: boolean;
   status?: 'completed' | 'pending' | 'cancelled';
   _originalId?: string; // 繰り返しイベントの元のID

@@ -1,5 +1,5 @@
 import { CalendarEvent } from './types';
-import { parseISO, isSameDay, addDays, addWeeks, addMonths, isBefore, isAfter, getDay } from 'date-fns';
+import { parseISO, isSameDay, addDays, addWeeks, addMonths, isBefore, isAfter, getDay, format } from 'date-fns';
 
 /**
  * 繰り返しイベントを展開して、指定された日付範囲内のイベントを生成する
@@ -37,6 +37,13 @@ export function expandRecurringEvents(
     const recurringStartDate = isAfter(eventStart, startDate) ? eventStart : startDate;
     let currentDate = new Date(eventStart);
 
+    // 終了日のチェック（recurrenceEndDateが設定されている場合）
+    const recurrenceEndDate = event.recurrenceEndDate ? parseISO(event.recurrenceEndDate) : null;
+    const actualEndDate = recurrenceEndDate && isBefore(recurrenceEndDate, endDate) ? recurrenceEndDate : endDate;
+
+    // 例外日のセット作成（高速検索用）
+    const exceptionDatesSet = new Set(event.exceptionDates || []);
+
     // イベント開始日から範囲開始日まで進める（範囲開始日がイベント開始日より後の場合のみ）
     while (isBefore(currentDate, recurringStartDate)) {
       const nextDate = getNextOccurrence(currentDate, event.repeat, event.repeatDays, event.repeatDate);
@@ -49,27 +56,34 @@ export function expandRecurringEvents(
     let count = 0;
     const maxOccurrences = 100;
 
-    console.log(`  📅 Expanding recurring event: "${event.title}", repeat: ${event.repeat}, repeatDays: ${JSON.stringify(event.repeatDays)}`);
+    console.log(`  📅 Expanding recurring event: "${event.title}", repeat: ${event.repeat}, repeatDays: ${JSON.stringify(event.repeatDays)}, endDate: ${event.recurrenceEndDate || 'none'}, exceptions: ${event.exceptionDates?.length || 0}`);
 
-    while (currentDate && !isAfter(currentDate, endDate) && count < maxOccurrences) {
+    while (currentDate && !isAfter(currentDate, actualEndDate) && count < maxOccurrences) {
       // イベント開始日以降のみ繰り返しを生成
       if (!isBefore(currentDate, eventStart)) {
-        const newEnd = new Date(currentDate.getTime() + duration);
+        const currentDateStr = format(currentDate, 'yyyy-MM-dd');
 
-        expandedEvents.push({
-          ...event,
-          id: `${event.id}-${currentDate.toISOString()}`,
-          start: currentDate.toISOString(),
-          end: newEnd.toISOString(),
-          _originalId: event.id, // 元のイベントIDを保持
-          _isRecurring: true, // 繰り返しイベントであることを示す
-        } as CalendarEvent);
+        // 例外日でない場合のみ追加
+        if (!exceptionDatesSet.has(currentDateStr)) {
+          const newEnd = new Date(currentDate.getTime() + duration);
+
+          expandedEvents.push({
+            ...event,
+            id: `${event.id}-${currentDate.toISOString()}`,
+            start: currentDate.toISOString(),
+            end: newEnd.toISOString(),
+            _originalId: event.id, // 元のイベントIDを保持
+            _isRecurring: true, // 繰り返しイベントであることを示す
+          } as CalendarEvent);
+          count++;
+        } else {
+          console.log(`  ⏭️ Skipping exception date: ${currentDateStr}`);
+        }
       }
 
       const nextDate = getNextOccurrence(currentDate, event.repeat, event.repeatDays, event.repeatDate);
       if (!nextDate) break;
       currentDate = nextDate;
-      count++;
     }
 
     console.log(`  ✅ Expanded "${event.title}" into ${count} occurrences`);

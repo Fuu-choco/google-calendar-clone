@@ -28,6 +28,7 @@ import { AIEventInput } from './AIEventInput';
 import { ParsedEvent } from '@/lib/ai/eventParser';
 import { Separator } from '@/components/ui/separator';
 import { generateId } from '@/lib/utils';
+import { RecurringEventDeleteDialog, DeleteOption } from './RecurringEventDeleteDialog';
 
 interface TaskEditModalProps {
   open: boolean;
@@ -45,6 +46,8 @@ export function TaskEditModal({
   defaultTime,
 }: TaskEditModalProps) {
   const { templates, addEvent, updateEvent, deleteEvent, categories } = useAppStore();
+
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
 
   const [formData, setFormData] = useState({
     title: '',
@@ -232,26 +235,44 @@ export function TaskEditModal({
     }
   };
 
-  const handleDelete = async () => {
-    if (event) {
-      try {
-        await deleteEvent(event.id);
-        onOpenChange(false);
-      } catch (error) {
-        console.error('タスクの削除に失敗しました:', error);
-        alert('タスクの削除に失敗しました。もう一度お試しください。');
-      }
+  const handleDelete = () => {
+    if (!event) return;
+
+    // 繰り返しイベントの場合はダイアログを表示
+    if (event.repeat && event.repeat !== 'none') {
+      setShowDeleteDialog(true);
+    } else {
+      // 単発イベントは直接削除
+      performDelete('all');
+    }
+  };
+
+  const performDelete = async (deleteType: DeleteOption) => {
+    if (!event) return;
+
+    try {
+      const eventDate = format(new Date(event.start), 'yyyy-MM-dd');
+      await deleteEvent(event.id, {
+        deleteType,
+        eventDate,
+      });
+      setShowDeleteDialog(false);
+      onOpenChange(false);
+    } catch (error) {
+      console.error('タスクの削除に失敗しました:', error);
+      alert('タスクの削除に失敗しました。もう一度お試しください。');
     }
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>{event ? 'タスクを編集' : 'タスクを作成'}</DialogTitle>
-        </DialogHeader>
+    <>
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{event ? 'タスクを編集' : 'タスクを作成'}</DialogTitle>
+          </DialogHeader>
 
-        <div className="space-y-4 py-4">
+          <div className="space-y-4 py-4">
           {!event && (
             <>
               <AIEventInput onEventParsed={handleAIEventParsed} />
@@ -495,18 +516,28 @@ export function TaskEditModal({
           </div>
         </div>
 
-        <DialogFooter>
-          {event && (
-            <Button variant="destructive" onClick={handleDelete}>
-              削除
+          <DialogFooter>
+            {event && (
+              <Button variant="destructive" onClick={handleDelete}>
+                削除
+              </Button>
+            )}
+            <Button variant="outline" onClick={() => onOpenChange(false)}>
+              キャンセル
             </Button>
-          )}
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
-            キャンセル
-          </Button>
-          <Button onClick={handleSave}>保存</Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+            <Button onClick={handleSave}>保存</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {event && (
+        <RecurringEventDeleteDialog
+          open={showDeleteDialog}
+          onOpenChange={setShowDeleteDialog}
+          onDelete={performDelete}
+          eventTitle={event.title}
+        />
+      )}
+    </>
   );
 }

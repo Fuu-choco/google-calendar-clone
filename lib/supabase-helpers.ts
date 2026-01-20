@@ -32,6 +32,8 @@ export async function fetchCalendarEvents() {
     repeat: event.recurrence_type || 'none',
     repeatDays: event.recurrence_days || undefined,
     repeatDate: undefined, // TODO: 月繰り返しの日付は別途実装が必要
+    exceptionDates: event.exception_dates || [],
+    recurrenceEndDate: event.recurrence_end_date || undefined,
   })) as CalendarEvent[];
 }
 
@@ -50,6 +52,8 @@ export async function createCalendarEvent(event: CalendarEvent) {
     notification_minutes_before: event.notificationMinutes || [],
     recurrence_type: event.repeat || 'none',
     recurrence_days: event.repeatDays || null,
+    exception_dates: event.exceptionDates || [],
+    recurrence_end_date: event.recurrenceEndDate || null,
     status: 'pending',
   };
 
@@ -87,8 +91,10 @@ export async function updateCalendarEvent(id: string, updates: Partial<CalendarE
   if (updates.notificationMinutes !== undefined) dbUpdates.notification_minutes_before = updates.notificationMinutes;
   if (updates.repeat !== undefined) dbUpdates.recurrence_type = updates.repeat;
   if (updates.repeatDays !== undefined) dbUpdates.recurrence_days = updates.repeatDays;
+  if (updates.exceptionDates !== undefined) dbUpdates.exception_dates = updates.exceptionDates;
+  if (updates.recurrenceEndDate !== undefined) dbUpdates.recurrence_end_date = updates.recurrenceEndDate;
 
-  const { data, error } = await supabase
+  const { data, error} = await supabase
     .from('calendar_events')
     .update(dbUpdates)
     .eq('id', id)

@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { CalendarEvent, Todo, Template, UserSettings, Goal, CategoryItem } from './types';
 import { AppNotification } from './types/notification';
-import { addDays, format } from 'date-fns';
+import { addDays, format, subDays } from 'date-fns';
 import {
   fetchCalendarEvents,
   createCalendarEvent,
@@ -67,7 +67,7 @@ interface AppState {
   // イベント操作
   addEvent: (event: CalendarEvent) => Promise<void>;
   updateEvent: (id: string, event: Partial<CalendarEvent>) => Promise<void>;
-  deleteEvent: (id: string) => Promise<void>;
+  deleteEvent: (id: string, options?: { deleteType?: 'this' | 'following' | 'all'; eventDate?: string }) => Promise<void>;
   setSelectedEvent: (event: CalendarEvent | null) => void;
 
   // Todo操作
@@ -462,8 +462,11 @@ export const useAppStore = create<AppState>()(
         }
       },
 
-      deleteEvent: async (id) => {
+      deleteEvent: async (id, options) => {
         try {
+          const deleteType = options?.deleteType || 'all';
+          const eventDate = options?.eventDate;
+
           // 展開されたイベントのIDから元のIDを抽出（形式: "originalId-timestamp"）
           let originalId = id;
           if (id.includes('-') && id.match(/\d{4}-\d{2}-\d{2}T/)) {
@@ -479,22 +482,60 @@ export const useAppStore = create<AppState>()(
             return;
           }
 
-          // 繰り返しイベントかどうかをチェック
+          // 繰り返しイベントの削除オプション処理
           if (event.repeat && event.repeat !== 'none') {
-            console.log('🗑️ Deleting recurring event:', originalId);
+            console.log(`🗑️ Deleting recurring event: ${originalId}, type: ${deleteType}`);
+
+            if (deleteType === 'this') {
+              // このイベントのみ削除：例外日として記録
+              const exceptionDates = event.exceptionDates || [];
+              if (eventDate && !exceptionDates.includes(eventDate)) {
+                exceptionDates.push(eventDate);
+                await updateCalendarEvent(originalId, { exceptionDates });
+
+                // ローカル状態を更新
+                set((state) => ({
+                  events: state.events.map((e) =>
+                    e.id === originalId ? { ...e, exceptionDates } : e
+                  ),
+                }));
+              }
+              console.log(`✅ Added exception date: ${eventDate}`);
+            } else if (deleteType === 'following') {
+              // このイベント以降を削除：終了日を設定
+              if (eventDate) {
+                // イベント日の前日を終了日として設定
+                const recurrenceEndDate = format(subDays(new Date(eventDate), 1), 'yyyy-MM-dd');
+
+                await updateCalendarEvent(originalId, { recurrenceEndDate });
+
+                // ローカル状態を更新
+                set((state) => ({
+                  events: state.events.map((e) =>
+                    e.id === originalId ? { ...e, recurrenceEndDate } : e
+                  ),
+                }));
+                console.log(`✅ Set recurrence end date: ${recurrenceEndDate}`);
+              }
+            } else {
+              // すべて削除：イベント全体を削除
+              await deleteCalendarEvent(originalId);
+              set((state) => ({
+                events: state.events.filter((e) => e.id !== originalId),
+                selectedEvent: state.selectedEvent?.id === id ? null : state.selectedEvent,
+              }));
+              console.log('✅ Deleted all recurring events');
+            }
           } else {
+            // 単発イベントは通常通り削除
             console.log('🗑️ Deleting single event:', originalId);
+            await deleteCalendarEvent(originalId);
+            set((state) => ({
+              events: state.events.filter((e) => e.id !== originalId),
+              selectedEvent: state.selectedEvent?.id === id ? null : state.selectedEvent,
+            }));
+            console.log('✅ Event deleted successfully');
           }
-
-          // データベースから削除
-          await deleteCalendarEvent(originalId);
-
-          // ローカル状態から削除
-          set((state) => ({
-            events: state.events.filter((e) => e.id !== originalId),
-            selectedEvent: state.selectedEvent?.id === id ? null : state.selectedEvent,
-          }));
-          console.log('✅ Event deleted successfully');
         } catch (error) {
           console.error('❌ Error deleting event:', error);
           throw error;
